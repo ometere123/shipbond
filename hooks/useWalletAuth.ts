@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useAccount, useSignMessage, useDisconnect } from "wagmi";
 
 type AuthState = "idle" | "requesting_nonce" | "waiting_signature" | "verifying" | "authenticated" | "error";
@@ -18,6 +18,14 @@ export function useWalletAuth(): UseWalletAuthResult {
   const { disconnect } = useDisconnect();
   const [state, setState] = useState<AuthState>("idle");
   const [error, setError] = useState<string | null>(null);
+
+  // Rehydrate auth state from session cookie on mount
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d) => { if (d.authenticated) setState("authenticated"); })
+      .catch(() => {});
+  }, []);
 
   const signIn = useCallback(async () => {
     if (!address) {
