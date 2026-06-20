@@ -1,7 +1,6 @@
 "use client";
 
-import { useAccount, useConnect, useChainId, useSwitchChain } from "wagmi";
-// useSwitchChain kept for wagmi chain state sync; actual switch uses addAndSwitchToBradbury
+import { useAccount, useConnect, useSwitchChain } from "wagmi";
 import { useWalletAuth } from "@/hooks/useWalletAuth";
 import { ShipBondLogo } from "@/components/brand/ShipBondLogo";
 import { Button } from "@/components/ui/Button";
@@ -56,8 +55,7 @@ const STEPS = [
 ] as const;
 
 export function ConnectWalletPanel() {
-  const { address, isConnected } = useAccount();
-  const chainId = useChainId();
+  const { address, isConnected, chainId } = useAccount();
   const { connect, connectors, isPending: isConnecting } = useConnect();
   const { switchChain } = useSwitchChain();
   const { state: authState, error: authError, signIn } = useWalletAuth();
