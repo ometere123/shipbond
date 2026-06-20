@@ -7,7 +7,8 @@
  * when account is a string address, eth_* calls route through window.ethereum.
  *
  * value: 0n is required for non-payable calls (genlayer-js contract).
- * Money-movement actions wait for FINALIZED; state writes wait for ACCEPTED.
+ * All actions wait for ACCEPTED for fast UX. settle/settle_human_agreement
+ * wait for FINALIZED since those are the actual payout calls.
  */
 import { useState, useCallback } from "react";
 import { TransactionStatus } from "genlayer-js/types";
@@ -67,12 +68,10 @@ export function useCreateMilestone() {
         args:         [title, description, termsHash, bondWei, deadline],
         value:        rewardWei,
       });
-      // Payable — sponsor reward GEN is locked into the contract.
-      // Must wait for FINALIZED before treating funds as committed.
       await client.waitForTransactionReceipt({
         hash,
-        status:  TransactionStatus.FINALIZED,
-        retries: 180,
+        status:  TransactionStatus.ACCEPTED,
+        retries: 60,
       });
       return hash as string;
     },
@@ -96,8 +95,8 @@ export function useAcceptMilestone() {
       });
       await client.waitForTransactionReceipt({
         hash,
-        status:  TransactionStatus.FINALIZED,
-        retries: 120,
+        status:  TransactionStatus.ACCEPTED,
+        retries: 60,
       });
       return hash as string;
     },
@@ -123,12 +122,10 @@ export function useSubmitEvidence() {
         args:         [milestoneId, evidenceDigest, evidenceRefsJson],
         value:        0n,
       });
-      // No money moves, but FINALIZED ensures builder's evidence is committed
-      // before the sponsor can call request_review.
       await client.waitForTransactionReceipt({
         hash,
-        status:  TransactionStatus.FINALIZED,
-        retries: 150,
+        status:  TransactionStatus.ACCEPTED,
+        retries: 60,
       });
       return hash as string;
     },
@@ -150,11 +147,10 @@ export function useRequestReview() {
         args:         [milestoneId],
         value:        0n,
       });
-      // Consensus can take longer — wait for FINALIZED
       await client.waitForTransactionReceipt({
         hash,
-        status:  TransactionStatus.FINALIZED,
-        retries: 240,
+        status:  TransactionStatus.ACCEPTED,
+        retries: 60,
       });
       return hash as string;
     },
@@ -176,7 +172,7 @@ export function useSettle() {
         args:         [milestoneId],
         value:        0n,
       });
-      // Money moves — FINALIZED required
+      // Payout — wait for FINALIZED to confirm funds moved
       await client.waitForTransactionReceipt({
         hash,
         status:  TransactionStatus.FINALIZED,
@@ -204,8 +200,8 @@ export function useCancelMilestone() {
       });
       await client.waitForTransactionReceipt({
         hash,
-        status:  TransactionStatus.FINALIZED,
-        retries: 120,
+        status:  TransactionStatus.ACCEPTED,
+        retries: 60,
       });
       return hash as string;
     },

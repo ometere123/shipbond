@@ -18,8 +18,8 @@
 import { readSponsorMilestoneIds, readMilestone } from "@/lib/genlayer/server-client";
 import { getAddress } from "viem";
 
-const MAX_RETRIES     = 5;
-const RETRY_DELAY_MS  = 2000;
+const MAX_RETRIES     = 8;
+const RETRY_DELAY_MS  = 3000;
 
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
