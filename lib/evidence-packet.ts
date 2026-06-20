@@ -37,7 +37,8 @@ export function normalizeEvidencePacket(input: Partial<EvidencePacket>): Evidenc
 
   for (const [key, max] of Object.entries(OPTIONAL_FIELD_LIMITS)) {
     const value = String(input[key as keyof EvidencePacket] ?? "").trim();
-    packet[key as keyof Omit<EvidencePacket, "acceptance_criteria_checklist">] = value.slice(0, max);
+    // Contract requires non-empty string — use "N/A" when field is not applicable
+    packet[key as keyof Omit<EvidencePacket, "acceptance_criteria_checklist">] = (value || "N/A").slice(0, max);
   }
 
   const checklist = input.acceptance_criteria_checklist ?? [];
