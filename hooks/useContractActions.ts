@@ -7,8 +7,7 @@
  * when account is a string address, eth_* calls route through window.ethereum.
  *
  * value: 0n is required for non-payable calls (genlayer-js contract).
- * All actions wait for ACCEPTED for fast UX. settle/settle_human_agreement
- * wait for FINALIZED since those are the actual payout calls.
+ * All actions use ACCEPTED for fast Bradbury UX; FINALIZED can take much longer.
  */
 import { useState, useCallback } from "react";
 import { TransactionStatus } from "genlayer-js/types";
@@ -172,12 +171,16 @@ export function useSettle() {
         args:         [milestoneId],
         value:        0n,
       });
-      // Payout — wait for FINALIZED to confirm funds moved
-      await client.waitForTransactionReceipt({
-        hash,
-        status:  TransactionStatus.FINALIZED,
-        retries: 180,
-      });
+      // Payout moves on-chain, but ACCEPTED is the practical UX boundary on Bradbury.
+      try {
+        await client.waitForTransactionReceipt({
+          hash,
+          status:  TransactionStatus.ACCEPTED,
+          retries: 90,
+        });
+      } catch (err) {
+        console.warn("[useSettle] receipt wait timed out; recording submitted tx", err);
+      }
       return hash as string;
     },
     [client],
@@ -280,11 +283,15 @@ export function useSettleHumanAgreement() {
         args:         [milestoneId],
         value:        0n,
       });
-      await client.waitForTransactionReceipt({
-        hash,
-        status:  TransactionStatus.FINALIZED,
-        retries: 180,
-      });
+      try {
+        await client.waitForTransactionReceipt({
+          hash,
+          status:  TransactionStatus.ACCEPTED,
+          retries: 90,
+        });
+      } catch (err) {
+        console.warn("[useSettleHumanAgreement] receipt wait timed out; recording submitted tx", err);
+      }
       return hash as string;
     },
     [client],
