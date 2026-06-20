@@ -6,7 +6,7 @@ import { getSubmissionByMilestone } from "@/lib/data/submissions";
 import { tryGetSessionWallet } from "@/lib/get-session-wallet";
 import { updateOnChainId } from "@/lib/data/milestones";
 import { resolveCreatedMilestoneId } from "@/lib/genlayer/resolve-milestone-id";
-import { SHIPBOND_CONTRACT } from "@/lib/genlayer/bradbury-chain";
+import { SHIPBOND_CONTRACT } from "@/lib/genlayer/studionet-chain";
 import { AcceptMilestonePanel } from "@/components/milestone/AcceptMilestonePanel";
 import { EmptyState } from "@/components/ui/EmptyState";
 

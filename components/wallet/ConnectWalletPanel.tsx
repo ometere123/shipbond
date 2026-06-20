@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useAccount, useConnect, useSwitchChain } from "wagmi";
 import { useWalletAuth } from "@/hooks/useWalletAuth";
 import { ShipBondLogo } from "@/components/brand/ShipBondLogo";
 import { Button } from "@/components/ui/Button";
-import { BRADBURY_CHAIN_ID } from "@/lib/wagmi";
+import { STUDIONET_CHAIN_ID } from "@/lib/wagmi";
 import { shortenAddress } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -19,28 +19,28 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 
-const BRADBURY_CHAIN_PARAMS = {
-  chainId: "0x107D", // 4221 in hex
-  chainName: "GenLayer Bradbury",
+const STUDIONET_CHAIN_PARAMS = {
+  chainId: "0xF22F", // 61999 in hex
+  chainName: "GenLayer Studionet",
   nativeCurrency: { name: "GEN", symbol: "GEN", decimals: 18 },
-  rpcUrls: ["https://rpc.testnet-chain.genlayer.com"],
-  blockExplorerUrls: ["https://explorer-bradbury.genlayer.com"],
+  rpcUrls: ["https://studio.genlayer.com/api"],
+  blockExplorerUrls: ["https://explorer-studio.genlayer.com"],
 };
 
-async function addAndSwitchToBradbury() {
+async function addAndSwitchToStudionet() {
   const provider = (window as any).ethereum;
   if (!provider) throw new Error("No wallet detected");
   try {
     await provider.request({
       method: "wallet_switchEthereumChain",
-      params: [{ chainId: BRADBURY_CHAIN_PARAMS.chainId }],
+      params: [{ chainId: STUDIONET_CHAIN_PARAMS.chainId }],
     });
   } catch (err: any) {
     // 4902 = chain not added yet
     if (err?.code === 4902 || err?.code === -32603) {
       await provider.request({
         method: "wallet_addEthereumChain",
-        params: [BRADBURY_CHAIN_PARAMS],
+        params: [STUDIONET_CHAIN_PARAMS],
       });
     } else {
       throw err;
@@ -50,7 +50,7 @@ async function addAndSwitchToBradbury() {
 
 const STEPS = [
   { id: "connect", label: "Connect Wallet" },
-  { id: "network", label: "Switch to Bradbury" },
+  { id: "network", label: "Switch to Studionet" },
   { id: "sign",    label: "Sign to Verify" },
 ] as const;
 
@@ -68,7 +68,7 @@ export function ConnectWalletPanel() {
     setSwitchError(null);
     setIsSwitching(true);
     try {
-      await addAndSwitchToBradbury();
+      await addAndSwitchToStudionet();
     } catch (err: any) {
       setSwitchError(err?.message ?? "Failed to switch network");
     } finally {
@@ -76,7 +76,7 @@ export function ConnectWalletPanel() {
     }
   }, []);
 
-  const onBradbury = chainId === BRADBURY_CHAIN_ID;
+  const onStudionet = chainId === STUDIONET_CHAIN_ID;
   const isSigning = ["requesting_nonce","waiting_signature","verifying"].includes(authState);
   const isAuthenticated = authState === "authenticated";
 
@@ -100,7 +100,7 @@ export function ConnectWalletPanel() {
   const injectedConnector = connectors.find((c) => c.type === "injected");
 
   // Active step index
-  const activeStep = !isConnected ? 0 : !onBradbury ? 1 : 2;
+  const activeStep = !isConnected ? 0 : !onStudionet ? 1 : 2;
 
   return (
     <div className="min-h-screen bg-port-black flex items-center justify-center px-6 relative overflow-hidden">
@@ -162,7 +162,7 @@ export function ConnectWalletPanel() {
         {/* Main panel */}
         <div className="bg-port-card border border-port-border rounded-panel p-6 space-y-5">
 
-          {/* Step 1 — Connect */}
+          {/* Step 1 Ã¢â‚¬â€ Connect */}
           <div
             className={cn(
               "rounded-btn border p-4 transition-colors",
@@ -233,7 +233,7 @@ export function ConnectWalletPanel() {
             )}
           </div>
 
-          {/* Step 2 — Network */}
+          {/* Step 2 Ã¢â‚¬â€ Network */}
           <div
             className={cn(
               "rounded-btn border p-4 transition-colors",
@@ -241,29 +241,29 @@ export function ConnectWalletPanel() {
                 ? "border-port-border opacity-40 pointer-events-none"
                 : activeStep === 1
                 ? "border-amber-bond/30 bg-amber-bond/5"
-                : onBradbury
+                : onStudionet
                 ? "border-port-border/50 opacity-60"
                 : "border-port-border"
             )}
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Zap size={15} className={onBradbury ? "text-lime-passed" : "text-amber-bond"} />
+                <Zap size={15} className={onStudionet ? "text-lime-passed" : "text-amber-bond"} />
                 <span className="font-body text-table font-medium text-signal">
-                  Switch to Bradbury
+                  Switch to Studionet
                 </span>
               </div>
-              {onBradbury && <CheckCircle size={15} className="text-lime-passed" />}
+              {onStudionet && <CheckCircle size={15} className="text-lime-passed" />}
             </div>
 
-            {isConnected && !onBradbury && (
+            {isConnected && !onStudionet && (
               <>
                 <div className="flex items-center gap-2 mb-3">
                   <AlertTriangle size={13} className="text-amber-bond" />
                   <p className="font-body text-meta text-fog">
                     Currently on chain{" "}
                     <span className="font-mono text-signal">{chainId}</span>. Need{" "}
-                    <span className="font-mono text-amber-bond">4221</span>.
+                    <span className="font-mono text-amber-bond">61999</span>.
                   </p>
                 </div>
                 {switchError && (
@@ -275,16 +275,16 @@ export function ConnectWalletPanel() {
                   loading={isSwitching}
                   onClick={handleSwitchNetwork}
                 >
-                  Add &amp; Switch to GenLayer Bradbury
+                  Add &amp; Switch to GenLayer Studionet
                 </Button>
               </>
             )}
-            {onBradbury && (
-              <p className="font-mono text-meta text-fog">GenLayer Bradbury · Chain 4221</p>
+            {onStudionet && (
+              <p className="font-mono text-meta text-fog">GenLayer Studionet - Chain 61999</p>
             )}
           </div>
 
-          {/* Step 3 — Sign */}
+          {/* Step 3 - Sign */}
           <div
             className={cn(
               "rounded-btn border p-4 transition-colors",
@@ -316,7 +316,7 @@ export function ConnectWalletPanel() {
               <p className="font-body text-meta text-red-failed mb-3">{authError}</p>
             )}
 
-            {isConnected && onBradbury && !isAuthenticated && (
+            {isConnected && onStudionet && !isAuthenticated && (
               <Button
                 fullWidth
                 variant="genlayer"
@@ -330,7 +330,7 @@ export function ConnectWalletPanel() {
 
             {(isAuthenticated || isRedirecting) && (
               <p className="font-mono text-meta text-lime-passed">
-                Verified — redirecting…
+                Verified - redirecting...
               </p>
             )}
           </div>
@@ -339,10 +339,10 @@ export function ConnectWalletPanel() {
         {/* Footer */}
         <div className="text-center mt-6 space-y-2">
           <p className="font-mono text-meta text-steel">
-            GenLayer Bradbury · Chain 4221 · GEN
+            GenLayer Studionet - Chain 61999 - GEN
           </p>
           <Link href="/" className="font-body text-meta text-steel hover:text-fog transition-colors">
-            ← Back to landing
+            Back to landing
           </Link>
         </div>
       </div>

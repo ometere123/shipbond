@@ -11,7 +11,7 @@
  *     Also verify title, reward_wei, bond_wei, and sponsor address.
  *  5. Return the matched ID, or null if not found within retries.
  *
- * Retries with backoff because Bradbury state may need a moment to be visible
+ * Retries with backoff because Studionet state may need a moment to be visible
  * even after ACCEPTED status (edge nodes can lag slightly).
  */
 

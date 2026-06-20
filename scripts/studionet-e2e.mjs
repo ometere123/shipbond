@@ -1,14 +1,14 @@
 import { createAccount, createClient } from "genlayer-js";
-import { testnetBradbury } from "genlayer-js/chains";
+import { studionet } from "genlayer-js/chains";
 import { TransactionStatus, ExecutionResult } from "genlayer-js/types";
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { getAddress } from "viem";
 
-export async function runBradburyE2E({
+export async function runStudionetE2E({
   sponsorKey,
   builderKey,
-  contractAddress = "0xfb305e9011C58ebc1303795693026769E955e6B7",
+  contractAddress = "0xaD92f4d63B513394741cD5b5B650FfFfc3865D24",
   skipReview = false,
   waitStatus = TransactionStatus.ACCEPTED,
   log = console.log,
@@ -19,18 +19,18 @@ export async function runBradburyE2E({
 
   const sponsor = createAccount(sponsorKey);
   const builder = createAccount(builderKey);
-  const readClient = createClient({ chain: testnetBradbury });
-  const sponsorClient = createClient({ chain: testnetBradbury, account: sponsor });
-  const builderClient = createClient({ chain: testnetBradbury, account: builder });
+  const readClient = createClient({ chain: studionet });
+  const sponsorClient = createClient({ chain: studionet, account: sponsor });
+  const builderClient = createClient({ chain: studionet, account: builder });
   sponsorClient.estimateTransactionGas = async () => 200000n;
   builderClient.estimateTransactionGas = async () => 200000n;
 
   const rewardWei = 10n ** 15n; // 0.001 GEN
   const bondWei = 10n ** 15n;   // 0.001 GEN
   const nonce = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const title = `ShipBond E2E ${nonce}`;
+  const title = `ShipBond Studionet E2E ${nonce}`;
   const description = [
-    "Automated ShipBond E2E milestone.",
+    "Automated ShipBond Studionet E2E milestone.",
     "Builder must provide a public evidence packet with repo, commit, deployment, tx hash, smoke test result, and explanation.",
     "This run validates create, accept, submit, review request, and readable state transitions.",
   ].join(" ");
@@ -96,7 +96,7 @@ export async function runBradburyE2E({
     contract_address: contractAddress,
     write_tx_hash: acceptTx,
     read_result_summary: "Automated smoke read succeeded after builder accepted the milestone.",
-    smoke_test_result: "Route and contract smoke scenario executed by ShipBond E2E runner.",
+    smoke_test_result: "Route and contract smoke scenario executed by ShipBond Studionet E2E runner.",
     acceptance_criteria_checklist: [
       "Repository reference supplied.",
       "Deployment reference supplied.",
@@ -171,9 +171,9 @@ if (typeof process !== "undefined" && process.argv[1] && import.meta.url === pat
   const builderKey = process.env.SHIPBOND_BUILDER_KEY;
   const contractAddress = process.env.SHIPBOND_PROTOCOL_ADDRESS
     ?? process.env.NEXT_PUBLIC_SHIPBOND_PROTOCOL_ADDRESS
-    ?? "0xfb305e9011C58ebc1303795693026769E955e6B7";
+    ?? "0xaD92f4d63B513394741cD5b5B650FfFfc3865D24";
 
-  await runBradburyE2E({
+  await runStudionetE2E({
     sponsorKey,
     builderKey,
     contractAddress,

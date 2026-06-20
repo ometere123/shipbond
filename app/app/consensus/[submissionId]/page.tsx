@@ -295,7 +295,7 @@ function TraceRow({ label, value, type }: { label: string; value: string; type: 
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="font-mono text-meta text-steel uppercase tracking-wider shrink-0">{label}</span>
-      <HashPlate value={value} type={type} explorerType={type === "hash" ? "none" : "bradbury"} />
+      <HashPlate value={value} type={type} explorerType={type === "hash" ? "none" : "protocol"} />
     </div>
   );
 }

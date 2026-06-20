@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Copy, ExternalLink, Check } from "lucide-react";
-import { cn, shortenHash, shortenAddress, buildExplorerTxUrl, buildBradburyTxUrl, buildContractUrl } from "@/lib/utils";
+import { cn, shortenHash, shortenAddress, buildExplorerTxUrl, buildProtocolTxUrl, buildContractUrl } from "@/lib/utils";
 
 type HashType = "tx" | "address" | "hash" | "contract";
 
@@ -12,12 +12,12 @@ interface HashPlateProps {
   label?: string;
   className?: string;
   showFull?: boolean;
-  explorerType?: "chain" | "bradbury" | "none";
+  explorerType?: "chain" | "protocol" | "none";
 }
 
-function buildUrl(value: string, type: HashType, explorerType: "chain" | "bradbury" | "none"): string | null {
+function buildUrl(value: string, type: HashType, explorerType: "chain" | "protocol" | "none"): string | null {
   if (explorerType === "none") return null;
-  if (type === "tx")      return explorerType === "bradbury" ? buildBradburyTxUrl(value) : buildExplorerTxUrl(value);
+  if (type === "tx")      return explorerType === "protocol" ? buildProtocolTxUrl(value) : buildExplorerTxUrl(value);
   if (type === "address" || type === "contract") return buildContractUrl(value);
   return null;
 }
@@ -28,7 +28,7 @@ export function HashPlate({
   label,
   className,
   showFull = false,
-  explorerType = "bradbury",
+  explorerType = "protocol",
 }: HashPlateProps) {
   const [copied, setCopied] = useState(false);
   const [hovered, setHovered] = useState(false);

@@ -56,16 +56,16 @@ export function normalizeAddress(address: string): string {
 }
 
 export function buildExplorerTxUrl(hash: string): string {
-  const base = process.env.NEXT_PUBLIC_CHAIN_EXPLORER ?? "https://explorer.testnet-chain.genlayer.com";
+  const base = process.env.NEXT_PUBLIC_GENLAYER_EXPLORER ?? "https://explorer-studio.genlayer.com";
   return `${base}/tx/${hash}`;
 }
 
-export function buildBradburyTxUrl(hash: string): string {
-  const base = process.env.NEXT_PUBLIC_BRADBURY_EXPLORER ?? "https://explorer-bradbury.genlayer.com";
+export function buildProtocolTxUrl(hash: string): string {
+  const base = process.env.NEXT_PUBLIC_GENLAYER_EXPLORER ?? "https://explorer-studio.genlayer.com";
   return `${base}/tx/${hash}`;
 }
 
 export function buildContractUrl(address: string): string {
-  const base = process.env.NEXT_PUBLIC_BRADBURY_EXPLORER ?? "https://explorer-bradbury.genlayer.com";
+  const base = process.env.NEXT_PUBLIC_GENLAYER_EXPLORER ?? "https://explorer-studio.genlayer.com";
   return `${base}/address/${address}`;
 }

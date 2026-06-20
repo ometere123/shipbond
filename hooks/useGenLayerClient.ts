@@ -10,7 +10,7 @@
 import { useMemo } from "react";
 import { useAccount } from "wagmi";
 import { createClient } from "genlayer-js";
-import { bradburyChain } from "@/lib/genlayer/bradbury-chain";
+import { studionetChain } from "@/lib/genlayer/studionet-chain";
 
 export function useGenLayerClient() {
   const { address, isConnected } = useAccount();
@@ -18,7 +18,7 @@ export function useGenLayerClient() {
   const client = useMemo(() => {
     if (!isConnected || !address) return null;
     return createClient({
-      chain:   bradburyChain as any,
+      chain:   studionetChain as any,
       account: address,
     });
   }, [address, isConnected]);

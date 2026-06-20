@@ -68,7 +68,7 @@ function Trace({
   label: string;
   value: string | null | undefined;
   type: "tx" | "address" | "hash";
-  explorerType?: "chain" | "bradbury" | "none";
+  explorerType?: "chain" | "protocol" | "none";
 }) {
   if (!value) return null;
   return (

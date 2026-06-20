@@ -76,7 +76,7 @@ function Trace({ label, value, type = "tx" }: { label: string; value: string; ty
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="font-mono text-meta text-steel uppercase tracking-wider">{label}</span>
-      <HashPlate value={value} type={type} explorerType={type === "hash" ? "none" : "bradbury"} />
+      <HashPlate value={value} type={type} explorerType={type === "hash" ? "none" : "protocol"} />
     </div>
   );
 }

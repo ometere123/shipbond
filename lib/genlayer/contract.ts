@@ -1,11 +1,11 @@
 /**
  * Contract address constant and type definitions mirroring deployed
- * ShipBondProtocol.py on Bradbury (0xfb305e9011C58ebc1303795693026769E955e6B7).
+ * ShipBondProtocol.py on Studionet (0xaD92f4d63B513394741cD5b5B650FfFfc3865D24).
  *
  * Status/verdict values are UPPERCASE to match the Python contract.
  */
 
-export { SHIPBOND_CONTRACT } from "@/lib/genlayer/bradbury-chain";
+export { SHIPBOND_CONTRACT } from "@/lib/genlayer/studionet-chain";
 
 // ── Status values (mirror Python contract) ───────────────────────────────────
 export type ContractStatus =

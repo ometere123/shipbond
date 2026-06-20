@@ -1,17 +1,22 @@
 # ShipBondProtocol Deployment Guide
 
-ShipBond uses one global GenLayer protocol contract on Bradbury.
+ShipBond uses one global GenLayer protocol contract on Studionet.
 
-The deployed contract stores many milestones internally. A sponsor does not deploy a new contract per milestone; the app calls `create_milestone` on the global protocol contract and stores the returned on-chain milestone ID in Supabase after verification.
+The deployed contract stores many milestones internally. A sponsor does not deploy
+a new contract per milestone; the app calls `create_milestone` on the global
+protocol contract and stores the verified on-chain milestone ID in Supabase.
 
-## Current Bradbury Contract
+## Current Studionet Contract
 
 ```env
-NEXT_PUBLIC_SHIPBOND_PROTOCOL_ADDRESS=0xfb305e9011C58ebc1303795693026769E955e6B7
-SHIPBOND_PROTOCOL_ADDRESS=0xfb305e9011C58ebc1303795693026769E955e6B7
-NEXT_PUBLIC_CHAIN_ID=4221
-NEXT_PUBLIC_GENLAYER_RPC_URL=https://rpc-bradbury.genlayer.com
-NEXT_PUBLIC_GENLAYER_CHAIN_RPC=https://rpc.testnet-chain.genlayer.com
+NEXT_PUBLIC_SHIPBOND_PROTOCOL_ADDRESS=0xaD92f4d63B513394741cD5b5B650FfFfc3865D24
+NEXT_PUBLIC_SHIPBOND_CONTRACT_ADDRESS=0xaD92f4d63B513394741cD5b5B650FfFfc3865D24
+SHIPBOND_PROTOCOL_ADDRESS=0xaD92f4d63B513394741cD5b5B650FfFfc3865D24
+NEXT_PUBLIC_CHAIN_ID=61999
+NEXT_PUBLIC_GENLAYER_NETWORK=studionet
+NEXT_PUBLIC_GENLAYER_RPC_URL=https://studio.genlayer.com/api
+NEXT_PUBLIC_GENLAYER_CHAIN_RPC=https://studio.genlayer.com/api
+NEXT_PUBLIC_GENLAYER_EXPLORER=https://explorer-studio.genlayer.com
 ```
 
 ## Deploy Or Upgrade The Global Contract
@@ -20,7 +25,7 @@ NEXT_PUBLIC_GENLAYER_CHAIN_RPC=https://rpc.testnet-chain.genlayer.com
 
 ```bash
 npm install -g genlayer
-genlayer network set bradbury
+genlayer network set studionet
 genlayer account import --name deployer
 genlayer account use deployer
 ```
@@ -31,22 +36,21 @@ genlayer account use deployer
 genlayer deploy --contract contracts/ShipBondProtocol.py
 ```
 
-3. Copy the deployed contract address into `.env.local`.
+3. Copy the deployed contract address into `.env.local` and Vercel.
 
 ```env
 NEXT_PUBLIC_SHIPBOND_PROTOCOL_ADDRESS=0x...
+NEXT_PUBLIC_SHIPBOND_CONTRACT_ADDRESS=0x...
 SHIPBOND_PROTOCOL_ADDRESS=0x...
 ```
 
-4. Restart the Next.js app.
+4. Restart or redeploy the Next.js app.
 
 ```bash
 npm.cmd run dev
 ```
 
 ## Runtime Milestone Flow
-
-The app performs these steps for every milestone:
 
 1. `POST /api/milestones/create`
    Creates a Supabase milestone row and computes a unique `terms_hash`.
@@ -60,7 +64,9 @@ create_milestone(title, description, terms_hash, bond_wei, deadline)
 The reward is sent as transaction value.
 
 3. `POST /api/milestones/[id]/set-on-chain-id`
-   Resolves the actual on-chain milestone ID by reading `get_sponsor_milestone_ids`, matching `terms_hash`, and verifying sponsor plus terms hash before storing it.
+   Resolves the actual on-chain milestone ID by reading
+   `get_sponsor_milestone_ids`, matching `terms_hash`, and verifying sponsor plus
+   terms hash before storing it.
 
 ## Contract Lifecycle
 
@@ -76,8 +82,6 @@ request_review -> NEEDS_HUMAN_REVIEW -> propose_human_settlement -> accept_human
 
 ## Read Methods
 
-Useful contract reads:
-
 ```text
 get_count()
 get_milestone(milestone_id)
@@ -92,7 +96,9 @@ is_settled(milestone_id)
 
 ## Notes
 
-- Wait for `FINALIZED` for money-moving actions.
-- `ACCEPTED` is enough for some state writes, but the app generally waits for `FINALIZED` where funds or evidence finality matters.
-- Supabase is a mirror and access-control layer. The GenLayer protocol contract is the source of truth for verdict and settlement state.
-- Chain ID is `4221` for Bradbury.
+- The app waits for `ACCEPTED` for fast Studionet UX.
+- For payout audits, verify balances and explorer messages on Studionet after the
+  network/indexer has caught up.
+- Supabase is a mirror and access-control layer. The GenLayer protocol contract
+  is the source of truth for verdict and settlement state.
+- Chain ID is `61999` for Studionet.

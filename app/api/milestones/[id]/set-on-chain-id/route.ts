@@ -23,7 +23,7 @@ import type { SessionData } from "@/lib/session";
 import { getMilestone } from "@/lib/data/milestones";
 import { resolveCreatedMilestoneId } from "@/lib/genlayer/resolve-milestone-id";
 import { readMilestone } from "@/lib/genlayer/server-client";
-import { SHIPBOND_CONTRACT } from "@/lib/genlayer/bradbury-chain";
+import { SHIPBOND_CONTRACT } from "@/lib/genlayer/studionet-chain";
 import { adminDb } from "@/lib/supabase-admin";
 import { writeAudit } from "@/lib/data/audit";
 

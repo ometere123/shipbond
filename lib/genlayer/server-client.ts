@@ -1,22 +1,22 @@
-/**
+﻿/**
  * SERVER-ONLY read-only GenLayer client.
- * Uses Bradbury RPC directly — no wallet, no account.
+ * Uses Studionet RPC directly - no wallet, no account.
  * Import only in API routes and Server Actions.
  */
 import { createClient } from "genlayer-js";
-import { bradburyChain, SHIPBOND_CONTRACT } from "@/lib/genlayer/bradbury-chain";
+import { studionetChain, SHIPBOND_CONTRACT } from "@/lib/genlayer/studionet-chain";
 
-// Singleton — reused across requests in the same process
+// Singleton Ã¢â‚¬â€ reused across requests in the same process
 let _client: ReturnType<typeof createClient> | null = null;
 
 function getClient() {
   if (!_client) {
-    _client = createClient({ chain: bradburyChain as any });
+    _client = createClient({ chain: studionetChain as any });
   }
   return _client;
 }
 
-// ── Read helpers ──────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Read helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 export async function readMilestone(milestoneId: string): Promise<Record<string, unknown>> {
   const client = getClient();

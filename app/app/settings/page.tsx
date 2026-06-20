@@ -1,6 +1,6 @@
 import { PortPanel } from "@/components/ui/PortPanel";
 import { HashPlate } from "@/components/ui/HashPlate";
-import { BRADBURY_CHAIN_EXPLORER, BRADBURY_EXPLORER, BRADBURY_RPC, BRADBURY_CHAIN_RPC, SHIPBOND_CONTRACT } from "@/lib/genlayer/bradbury-chain";
+import { STUDIONET_CHAIN_ID, STUDIONET_EXPLORER, STUDIONET_RPC, SHIPBOND_CONTRACT } from "@/lib/genlayer/studionet-chain";
 
 export const metadata = { title: "Settings" };
 
@@ -12,16 +12,15 @@ export default function SettingsPage() {
         <p className="font-body text-base text-fog mt-2">Network, protocol, and explorer configuration.</p>
       </div>
 
-      <PortPanel label="Bradbury Network" glow="violet">
+      <PortPanel label="Studionet Network" glow="violet">
         <div className="space-y-3">
-          <Row label="Chain ID" value="4221" />
-          <Row label="IC RPC" value={process.env.NEXT_PUBLIC_GENLAYER_RPC_URL ?? BRADBURY_RPC} />
-          <Row label="Chain RPC" value={process.env.NEXT_PUBLIC_GENLAYER_CHAIN_RPC ?? BRADBURY_CHAIN_RPC} />
-          <Row label="Bradbury Explorer" value={process.env.NEXT_PUBLIC_BRADBURY_EXPLORER ?? BRADBURY_EXPLORER} />
-          <Row label="Chain Explorer" value={process.env.NEXT_PUBLIC_CHAIN_EXPLORER ?? BRADBURY_CHAIN_EXPLORER} />
+          <Row label="Chain ID" value={String(STUDIONET_CHAIN_ID)} />
+          <Row label="IC RPC" value={process.env.NEXT_PUBLIC_GENLAYER_RPC_URL ?? STUDIONET_RPC} />
+          <Row label="Chain RPC" value={process.env.NEXT_PUBLIC_GENLAYER_CHAIN_RPC ?? STUDIONET_RPC} />
+          <Row label="Studionet Explorer" value={process.env.NEXT_PUBLIC_GENLAYER_EXPLORER ?? STUDIONET_EXPLORER} />
           <div className="flex items-center justify-between gap-4 border-t border-port-border pt-3">
             <span className="font-mono text-meta text-steel uppercase tracking-wider">Protocol Contract</span>
-            <HashPlate value={SHIPBOND_CONTRACT} type="address" explorerType="bradbury" />
+            <HashPlate value={SHIPBOND_CONTRACT} type="address" explorerType="protocol" />
           </div>
         </div>
       </PortPanel>

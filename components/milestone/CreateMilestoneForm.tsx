@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 /**
- * CreateMilestoneForm — 4-step flow:
+ * CreateMilestoneForm Ã¢â‚¬â€ 4-step flow:
  *
  *  1. POST /api/milestones/create
  *     Server creates DB record, embeds local DB ID in terms_hash, returns
@@ -28,7 +28,7 @@ import { PortPanel } from "@/components/ui/PortPanel";
 import { cn } from "@/lib/utils";
 import { useCreateMilestone } from "@/hooks/useContractActions";
 import { AlertTriangle, CheckCircle, Coins, Lock, FileText, Calendar, Loader2, ExternalLink } from "lucide-react";
-import { buildBradburyTxUrl } from "@/lib/utils";
+import { buildProtocolTxUrl } from "@/lib/utils";
 
 interface FormState {
   title:       string;
@@ -94,7 +94,7 @@ export function CreateMilestoneForm() {
     setServerError(null);
 
     try {
-      // ── Step 1: Create DB record, get terms_hash from server ──────────────
+      // Ã¢â€â‚¬Ã¢â€â‚¬ Step 1: Create DB record, get terms_hash from server Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
       setStep("saving");
       const res = await fetch("/api/milestones/create", {
         method:  "POST",
@@ -130,7 +130,7 @@ export function CreateMilestoneForm() {
 
       setConfirmedHash(termsHash);
 
-      // ── Step 2: Publish to GenLayer — wallet signs ────────────────────────
+      // Ã¢â€â‚¬Ã¢â€â‚¬ Step 2: Publish to GenLayer Ã¢â‚¬â€ wallet signs Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
       setStep("wallet");
       const txHash = await createOnChain(
         form.title.trim(),
@@ -145,13 +145,13 @@ export function CreateMilestoneForm() {
       if (!txHash) {
         setServerError(
           "Wallet transaction was rejected or failed. " +
-          "Your DB record is saved — you can retry publishing from the milestone page.",
+          "Your DB record is saved Ã¢â‚¬â€ you can retry publishing from the milestone page.",
         );
         router.push(`/app/port/${dbId}`);
         return;
       }
 
-      // ── Step 3: Resolve real on_chain_id server-side ─────────────────────
+      // Ã¢â€â‚¬Ã¢â€â‚¬ Step 3: Resolve real on_chain_id server-side Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
       setStep("linking");
       const linkRes = await fetch(`/api/milestones/${dbId}/set-on-chain-id`, {
         method:  "POST",
@@ -165,7 +165,7 @@ export function CreateMilestoneForm() {
         console.warn("[CreateMilestoneForm] set-on-chain-id failed:", linkData);
         setServerError(
           "Milestone created on chain, but ID linking timed out. " +
-          "It will resolve automatically — proceed to your milestone.",
+          "It will resolve automatically Ã¢â‚¬â€ proceed to your milestone.",
         );
       }
 
@@ -181,10 +181,10 @@ export function CreateMilestoneForm() {
 
   const stepLabel: Record<Step, string | null> = {
     idle:    null,
-    saving:  "Saving to database…",
-    wallet:  "Waiting for wallet confirmation…",
-    linking: "Linking on-chain ID…",
-    done:    "Done — redirecting…",
+    saving:  "Saving to databaseÃ¢â‚¬Â¦",
+    wallet:  "Waiting for wallet confirmationÃ¢â‚¬Â¦",
+    linking: "Linking on-chain IDÃ¢â‚¬Â¦",
+    done:    "Done Ã¢â‚¬â€ redirectingÃ¢â‚¬Â¦",
   };
 
   return (
@@ -199,7 +199,7 @@ export function CreateMilestoneForm() {
           <Field icon={<FileText size={14} />} error={errors.title}>
             <input
               className={inputClass(!!errors.title)}
-              placeholder="e.g. Deploy a working ERC-20 contract on Bradbury with test coverage"
+              placeholder="e.g. Deploy a working ERC-20 contract on Studionet with test coverage"
               value={form.title}
               onChange={set("title")}
               maxLength={200}
@@ -213,11 +213,11 @@ export function CreateMilestoneForm() {
       <PortPanel label="Terms & Acceptance Criteria">
         <div className="space-y-2">
           <p className="font-body text-meta text-fog">
-            Describe exactly what counts as completion. Be specific — the GenLayer IC evaluates this verbatim.
+            Describe exactly what counts as completion. Be specific - the GenLayer IC evaluates this verbatim.
           </p>
           <textarea
             className={cn(inputClass(!!errors.description), "min-h-[140px] resize-y")}
-            placeholder={"The builder must:\n1. Deploy an ERC-20 token contract to Bradbury\n2. Provide a public GitHub repo with ≥ 80% test coverage\n3. Submit contract address and deployment tx hash"}
+            placeholder={"The builder must:\n1. Deploy an ERC-20 token contract to Studionet\n2. Provide a public GitHub repo with >= 80% test coverage\n3. Submit contract address and deployment tx hash"}
             value={form.description}
             onChange={set("description")}
             maxLength={3000}
@@ -249,7 +249,7 @@ export function CreateMilestoneForm() {
             <label className="flex items-center gap-1.5 font-mono text-meta text-cyan-evidence uppercase tracking-wider">
               <Lock size={13} /> Builder Bond (GEN)
             </label>
-            <p className="font-body text-meta text-steel/70">Returned on pass · Slashed on fail</p>
+            <p className="font-body text-meta text-steel/70">Returned on pass - Slashed on fail</p>
             <Field icon={null} error={errors.bond_gen}>
               <input
                 type="number" min="0.0001" step="any"
@@ -262,7 +262,7 @@ export function CreateMilestoneForm() {
           </div>
         </div>
         <p className="font-mono text-meta text-steel/50 mt-3">
-          Values stored in wei on-chain. GenLayer Bradbury · GEN token.
+          Values stored in wei on-chain. GenLayer Studionet - GEN token.
         </p>
       </PortPanel>
 
@@ -293,18 +293,18 @@ export function CreateMilestoneForm() {
         </div>
       )}
 
-      {/* TX hash link → Bradbury explorer */}
+      {/* TX hash link to Studionet explorer */}
       {txHash && (
         <div className="flex items-center gap-2 px-4 py-3 bg-lime-passed/8 border border-lime-passed/25 rounded-btn">
           <CheckCircle size={14} className="text-lime-passed shrink-0" />
           <span className="font-mono text-meta text-fog">TX confirmed:</span>
           <a
-            href={buildBradburyTxUrl(txHash)}
+            href={buildProtocolTxUrl(txHash)}
             target="_blank"
             rel="noopener noreferrer"
             className="hash-text text-lime-passed text-meta truncate hover:text-signal flex items-center gap-1"
           >
-            {txHash.slice(0, 10)}…{txHash.slice(-8)}
+            {txHash.slice(0, 10)}Ã¢â‚¬Â¦{txHash.slice(-8)}
             <ExternalLink size={11} />
           </a>
         </div>
@@ -324,7 +324,7 @@ export function CreateMilestoneForm() {
           {step === "wallet" ? (
             <span className="flex items-center gap-2">
               <Loader2 size={14} className="animate-spin" />
-              Waiting for wallet…
+              Waiting for walletÃ¢â‚¬Â¦
             </span>
           ) : "Create Milestone"}
         </Button>
@@ -338,7 +338,7 @@ export function CreateMilestoneForm() {
   );
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 function inputClass(hasError: boolean) {
   return cn(

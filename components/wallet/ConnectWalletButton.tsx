@@ -4,7 +4,7 @@ import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } fro
 import { useWalletAuth } from "@/hooks/useWalletAuth";
 import { Button } from "@/components/ui/Button";
 import { shortenAddress } from "@/lib/utils";
-import { BRADBURY_CHAIN_ID } from "@/lib/wagmi";
+import { STUDIONET_CHAIN_ID } from "@/lib/wagmi";
 import { Wallet, LogOut, AlertTriangle, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -19,7 +19,7 @@ export function ConnectWalletButton() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const wrongChain = isConnected && chainId !== BRADBURY_CHAIN_ID;
+  const wrongChain = isConnected && chainId !== STUDIONET_CHAIN_ID;
   const isAuthenticated = authState === "authenticated";
   const isSigning = authState === "waiting_signature" || authState === "verifying" || authState === "requesting_nonce";
 
@@ -55,7 +55,7 @@ export function ConnectWalletButton() {
   if (wrongChain) {
     return (
       <button
-        onClick={() => switchChain({ chainId: BRADBURY_CHAIN_ID })}
+        onClick={() => switchChain({ chainId: STUDIONET_CHAIN_ID })}
         className={cn(
           "inline-flex items-center gap-2 px-3 py-2 rounded-btn",
           "bg-amber-bond/10 border border-amber-bond/40 text-amber-bond",
@@ -64,7 +64,7 @@ export function ConnectWalletButton() {
         )}
       >
         <AlertTriangle size={13} />
-        Switch to Bradbury
+        Switch to Studionet
       </button>
     );
   }
@@ -106,8 +106,8 @@ export function ConnectWalletButton() {
         <div className="absolute right-0 top-full mt-1.5 w-52 bg-port-panel border border-port-border rounded-panel shadow-card-lift z-50 py-1">
           {/* Network info */}
           <div className="px-3 py-2 border-b border-port-border">
-            <p className="font-mono text-meta text-steel">GenLayer Bradbury</p>
-            <p className="font-mono text-meta text-fog">Chain ID 4221</p>
+            <p className="font-mono text-meta text-steel">GenLayer Studionet</p>
+            <p className="font-mono text-meta text-fog">Chain ID 61999</p>
           </div>
           {/* Full address */}
           <div className="px-3 py-2 border-b border-port-border">

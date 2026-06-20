@@ -56,12 +56,12 @@ export default async function LandingPage() {
           <ShipBondLogo size="sm" showTagline />
           <div className="flex items-center gap-6">
             <a
-              href={process.env.NEXT_PUBLIC_BRADBURY_EXPLORER ?? "https://explorer-bradbury.genlayer.com"}
+              href={process.env.NEXT_PUBLIC_GENLAYER_EXPLORER ?? "https://explorer-studio.genlayer.com"}
               target="_blank"
               rel="noopener noreferrer"
               className="font-mono text-meta text-steel hover:text-fog transition-colors"
             >
-              Bradbury Explorer
+              Studionet Explorer
             </a>
             <a
               href={process.env.NEXT_PUBLIC_FAUCET_URL ?? "https://testnet-faucet.genlayer.foundation"}
@@ -72,7 +72,7 @@ export default async function LandingPage() {
               GEN Faucet
             </a>
             <span className="font-mono text-meta text-steel">
-              Chain ID: {process.env.NEXT_PUBLIC_CHAIN_ID ?? "4221"}
+              Chain ID: {process.env.NEXT_PUBLIC_CHAIN_ID ?? "61999"}
             </span>
           </div>
         </div>

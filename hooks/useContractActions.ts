@@ -7,12 +7,12 @@
  * when account is a string address, eth_* calls route through window.ethereum.
  *
  * value: 0n is required for non-payable calls (genlayer-js contract).
- * All actions use ACCEPTED for fast Bradbury UX; FINALIZED can take much longer.
+ * All actions use ACCEPTED for fast Studionet UX; FINALIZED can take much longer.
  */
 import { useState, useCallback } from "react";
 import { TransactionStatus } from "genlayer-js/types";
 import { useGenLayerClient } from "@/hooks/useGenLayerClient";
-import { SHIPBOND_CONTRACT } from "@/lib/genlayer/bradbury-chain";
+import { SHIPBOND_CONTRACT } from "@/lib/genlayer/studionet-chain";
 
 export type TxState =
   | { status: "idle" }
@@ -171,7 +171,7 @@ export function useSettle() {
         args:         [milestoneId],
         value:        0n,
       });
-      // Payout moves on-chain, but ACCEPTED is the practical UX boundary on Bradbury.
+      // Payout moves on-chain, but ACCEPTED is the practical UX boundary on Studionet.
       try {
         await client.waitForTransactionReceipt({
           hash,

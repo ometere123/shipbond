@@ -1,4 +1,4 @@
-import { listOpenMilestones } from "@/lib/data/milestones";
+﻿import { listOpenMilestones } from "@/lib/data/milestones";
 import { BondCard } from "@/components/milestone/BondCard";
 import { PortPanel } from "@/components/ui/PortPanel";
 import { Button } from "@/components/ui/Button";
@@ -24,7 +24,7 @@ export default async function ProofPortPage() {
       <div className="flex items-start justify-between mb-8 gap-4">
         <div>
           <p className="font-mono text-meta text-steel uppercase tracking-widest mb-2">
-            Proofport OS · Public Board
+            Proofport OS Ã‚Â· Public Board
           </p>
           <h1 className="font-display font-bold text-page-title text-signal">
             Proof Port
@@ -48,7 +48,7 @@ export default async function ProofPortPage() {
           <Stat label="Bonded" value={milestones.filter(m => m.status === "accepted").length} color="cyan" />
           <div className="h-4 w-px bg-port-border" />
           <span className="font-mono text-meta text-steel">
-            GenLayer Bradbury · Chain 4221
+            GenLayer Studionet - Chain 61999
           </span>
         </div>
       </PortPanel>
