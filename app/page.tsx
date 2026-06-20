@@ -7,8 +7,12 @@ import { GenLayerJudgeSection } from "@/components/landing/GenLayerJudgeSection"
 import { FinalCTA } from "@/components/landing/FinalCTA";
 import { Button } from "@/components/ui/Button";
 import { ChevronRight } from "lucide-react";
+import { getSession } from "@/lib/session";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const session = await getSession();
+  const isSignedIn = !!session.walletAddress;
+
   return (
     <div className="min-h-screen bg-port-black">
       {/* Landing nav */}
@@ -19,12 +23,21 @@ export default function LandingPage() {
             <Link href="/app/port">
               <Button variant="ghost" size="sm">Explore</Button>
             </Link>
-            <Link href="/connect">
-              <Button variant="primary" size="sm">
-                Connect Wallet
-                <ChevronRight size={14} />
-              </Button>
-            </Link>
+            {isSignedIn ? (
+              <Link href="/app/port">
+                <Button variant="primary" size="sm">
+                  Go to App
+                  <ChevronRight size={14} />
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/connect">
+                <Button variant="primary" size="sm">
+                  Connect Wallet
+                  <ChevronRight size={14} />
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </header>
