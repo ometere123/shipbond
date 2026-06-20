@@ -1,35 +1,22 @@
--- Align DB verdict/bond_action values with GenLayer contract output.
--- Contract returns UPPERCASE; API layer maps to these lowercase DB values.
---
--- reviews: 'pass','fail','undetermined' → 'passed','partial_pass','failed','needs_human_review'
--- reviews bond_action: 'return','slash','pending' → 'return','slash','hold'
--- settlements: 'pass','fail' → 'passed','partial_pass','failed'
--- settlements bond_action: 'return','slash' → 'return','slash','hold'
+-- Idempotent: drop and re-add all verdict/bond_action constraints with correct values.
+-- Safe to run even if 006/007 already applied the correct values.
 
--- ── reviews ──────────────────────────────────────────────────────────────────
-
-ALTER TABLE public.reviews
-  DROP CONSTRAINT IF EXISTS reviews_verdict_check,
-  DROP CONSTRAINT IF EXISTS reviews_bond_action_check;
-
-ALTER TABLE public.reviews
-  ADD CONSTRAINT reviews_verdict_check CHECK (
-    verdict IS NULL OR verdict IN ('passed', 'partial_pass', 'failed', 'needs_human_review')
+alter table public.reviews drop constraint if exists reviews_verdict_check;
+alter table public.reviews drop constraint if exists reviews_bond_action_check;
+alter table public.reviews
+  add constraint reviews_verdict_check check (
+    verdict is null or verdict in ('passed','partial_pass','failed','needs_human_review')
   ),
-  ADD CONSTRAINT reviews_bond_action_check CHECK (
-    bond_action IS NULL OR bond_action IN ('return', 'slash', 'hold')
+  add constraint reviews_bond_action_check check (
+    bond_action is null or bond_action in ('return','slash','hold')
   );
 
--- ── settlements ───────────────────────────────────────────────────────────────
-
-ALTER TABLE public.settlements
-  DROP CONSTRAINT IF EXISTS settlements_verdict_check,
-  DROP CONSTRAINT IF EXISTS settlements_bond_action_check;
-
-ALTER TABLE public.settlements
-  ADD CONSTRAINT settlements_verdict_check CHECK (
-    verdict IN ('passed', 'partial_pass', 'failed')
+alter table public.settlements drop constraint if exists settlements_verdict_check;
+alter table public.settlements drop constraint if exists settlements_bond_action_check;
+alter table public.settlements
+  add constraint settlements_verdict_check check (
+    verdict in ('passed','partial_pass','failed')
   ),
-  ADD CONSTRAINT settlements_bond_action_check CHECK (
-    bond_action IN ('return', 'slash', 'hold')
+  add constraint settlements_bond_action_check check (
+    bond_action in ('return','slash','hold')
   );
