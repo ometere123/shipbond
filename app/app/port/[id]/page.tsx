@@ -195,8 +195,8 @@ export default async function MilestoneManifestPage({ params }: Props) {
           </Link>
         )}
 
-        {/* Builder submitted — request review */}
-        {(isBuilder || isSponsor) && milestone.status === "submitted" && (
+        {/* Sponsor requests review after builder submits */}
+        {isSponsor && milestone.status === "submitted" && (
           <Link href={`/app/milestones/${milestone.id}/review`}>
             <Button variant="genlayer" size="lg">
               <Gavel size={16} />

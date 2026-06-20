@@ -51,7 +51,7 @@ export default async function BondDockPage() {
                 <div className="flex gap-2">
                   <Link href={`/app/port/${milestone.id}`}><Button variant="secondary" size="sm">Open</Button></Link>
                   {milestone.status === "accepted" && <Link href={`/app/milestones/${milestone.id}/submit`}><Button variant="genlayer" size="sm">Submit Evidence</Button></Link>}
-                  {milestone.status === "submitted" && <Link href={`/app/milestones/${milestone.id}/review`}><Button variant="genlayer" size="sm">Request Review</Button></Link>}
+                  {milestone.status === "submitted" && <span className="font-mono text-meta text-steel uppercase tracking-wider">Awaiting sponsor review</span>}
                   {milestone.status === "reviewing" && <Link href={`/app/milestones/${milestone.id}/settle`}><Button variant="primary" size="sm">Settle</Button></Link>}
                 </div>
               </div>
