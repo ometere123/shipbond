@@ -1,0 +1,11 @@
+<svg width="32" height="32" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer hexagon frame -->
+  <path d="M22 2L40 12V32L22 42L4 32V12L22 2Z" fill="#06070A" stroke="#FFB000" stroke-width="1.5"/>
+  <!-- Bond chain links -->
+  <rect x="12" y="17" width="8" height="4" rx="2" fill="#FFB000"/>
+  <rect x="24" y="23" width="8" height="4" rx="2" fill="#00E5FF"/>
+  <!-- Connector -->
+  <path d="M20 19H24V25" stroke="#FFB000" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Proof dot -->
+  <circle cx="24" cy="19" r="2" fill="#7C5CFF"/>
+</svg>
