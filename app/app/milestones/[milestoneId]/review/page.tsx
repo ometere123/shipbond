@@ -36,10 +36,10 @@ export default async function RequestReviewPage({ params }: { params: Promise<{ 
         <h1 className="font-display font-bold text-page-title text-signal">Request GenLayer Review</h1>
       </div>
 
-      {!submission?.evidence_digest ? (
+      {!isSponsor ? (
+        <EmptyState title="Sponsor only" description="Only the milestone sponsor can request a GenLayer review." />
+      ) : !submission?.evidence_digest ? (
         <EmptyState title="No evidence submitted" description="Evidence must be submitted before GenLayer can judge it." />
-      ) : !isSponsor && !isBuilder ? (
-        <EmptyState title="Restricted milestone" description="Only the sponsor or accepted builder can request review." />
       ) : !milestone.on_chain_id ? (
         <EmptyState title="Missing on-chain ID" description="The milestone must be linked to GenLayer before review." />
       ) : milestone.status !== "submitted" ? (
