@@ -28,7 +28,7 @@ export function HashPlate({
   label,
   className,
   showFull = false,
-  explorerType = "chain",
+  explorerType = "bradbury",
 }: HashPlateProps) {
   const [copied, setCopied] = useState(false);
   const [hovered, setHovered] = useState(false);

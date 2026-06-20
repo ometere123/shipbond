@@ -27,7 +27,8 @@ import { Button } from "@/components/ui/Button";
 import { PortPanel } from "@/components/ui/PortPanel";
 import { cn } from "@/lib/utils";
 import { useCreateMilestone } from "@/hooks/useContractActions";
-import { AlertTriangle, CheckCircle, Coins, Lock, FileText, Calendar, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle, Coins, Lock, FileText, Calendar, Loader2, ExternalLink } from "lucide-react";
+import { buildBradburyTxUrl } from "@/lib/utils";
 
 interface FormState {
   title:       string;
@@ -56,6 +57,7 @@ export function CreateMilestoneForm() {
   const [step, setStep]           = useState<Step>("idle");
   const [serverError, setServerError] = useState<string | null>(null);
   const [confirmedHash, setConfirmedHash] = useState<string | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
 
   const { execute: createOnChain } = useCreateMilestone();
 
@@ -139,6 +141,7 @@ export function CreateMilestoneForm() {
         BigInt(rewardWei),
       );
 
+      if (txHash) setTxHash(txHash);
       if (!txHash) {
         setServerError(
           "Wallet transaction was rejected or failed. " +
@@ -287,6 +290,23 @@ export function CreateMilestoneForm() {
           <CheckCircle size={14} className="text-lime-passed shrink-0" />
           <span className="font-mono text-meta text-fog">Terms hash confirmed:</span>
           <span className="hash-text text-violet-consensus text-meta truncate">{confirmedHash}</span>
+        </div>
+      )}
+
+      {/* TX hash link → Bradbury explorer */}
+      {txHash && (
+        <div className="flex items-center gap-2 px-4 py-3 bg-lime-passed/8 border border-lime-passed/25 rounded-btn">
+          <CheckCircle size={14} className="text-lime-passed shrink-0" />
+          <span className="font-mono text-meta text-fog">TX confirmed:</span>
+          <a
+            href={buildBradburyTxUrl(txHash)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hash-text text-lime-passed text-meta truncate hover:text-signal flex items-center gap-1"
+          >
+            {txHash.slice(0, 10)}…{txHash.slice(-8)}
+            <ExternalLink size={11} />
+          </a>
         </div>
       )}
 
