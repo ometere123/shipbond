@@ -12,23 +12,31 @@ export interface EvidencePacket {
   builder_explanation_summary: string;
 }
 
-const FIELD_LIMITS: Record<keyof Omit<EvidencePacket, "acceptance_criteria_checklist">, number> = {
+const REQUIRED_FIELD_LIMITS: Partial<Record<keyof Omit<EvidencePacket, "acceptance_criteria_checklist">, number>> = {
   repo_url: 500,
   commit_hash: 120,
   deployment_url: 500,
-  contract_address: 120,
-  write_tx_hash: 120,
   read_result_summary: 1000,
   smoke_test_result: 1000,
   builder_explanation_summary: 1500,
 };
 
+const OPTIONAL_FIELD_LIMITS: Partial<Record<keyof Omit<EvidencePacket, "acceptance_criteria_checklist">, number>> = {
+  contract_address: 120,
+  write_tx_hash: 120,
+};
+
 export function normalizeEvidencePacket(input: Partial<EvidencePacket>): EvidencePacket {
   const packet = {} as EvidencePacket;
 
-  for (const [key, max] of Object.entries(FIELD_LIMITS)) {
+  for (const [key, max] of Object.entries(REQUIRED_FIELD_LIMITS)) {
     const value = String(input[key as keyof EvidencePacket] ?? "").trim();
     if (!value) throw new Error(`Missing evidence field: ${key}`);
+    packet[key as keyof Omit<EvidencePacket, "acceptance_criteria_checklist">] = value.slice(0, max);
+  }
+
+  for (const [key, max] of Object.entries(OPTIONAL_FIELD_LIMITS)) {
+    const value = String(input[key as keyof EvidencePacket] ?? "").trim();
     packet[key as keyof Omit<EvidencePacket, "acceptance_criteria_checklist">] = value.slice(0, max);
   }
 
