@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getMilestone } from "@/lib/data/milestones";
 import { getSubmissionByMilestone } from "@/lib/data/submissions";
+import { getReviewForSubmission } from "@/lib/data/reviews";
 import { PortPanel } from "@/components/ui/PortPanel";
 import { CargoStatusBadge } from "@/components/milestone/CargoStatusBadge";
 import { ProofRail } from "@/components/milestone/ProofRail";
@@ -34,6 +35,8 @@ export default async function MilestoneManifestPage({ params }: Props) {
     getSubmissionByMilestone(id),
     tryGetSessionWallet(),
   ]);
+
+  const review = submission ? await getReviewForSubmission(submission.id) : null;
 
   if (!milestone) notFound();
 
@@ -215,11 +218,21 @@ export default async function MilestoneManifestPage({ params }: Props) {
         {(isSponsor || isBuilder) && milestone.status === "reviewing" && (
           <>
             <SyncVerdictButton milestoneId={milestone.id} />
-            <Link href={`/app/milestones/${milestone.id}/settle`}>
-              <Button variant="primary" size="lg">
-                Settle
-              </Button>
-            </Link>
+            {review?.verdict && submission && (
+              <Link href={`/app/consensus/${submission.id}`}>
+                <Button variant="genlayer" size="lg">
+                  <Gavel size={16} />
+                  Consensus Chamber
+                </Button>
+              </Link>
+            )}
+            {review?.verdict && (
+              <Link href={`/app/milestones/${milestone.id}/settle`}>
+                <Button variant="primary" size="lg">
+                  Settle
+                </Button>
+              </Link>
+            )}
           </>
         )}
 
