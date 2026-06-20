@@ -1,0 +1,182 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design Tokens ──────────────────────────────────────────────────────────── */
+:root {
+  /* Background scale */
+  --port-black:  #06070A;
+  --port-panel:  #10131A;
+  --port-card:   #161B24;
+  --port-border: #252B36;
+  --port-border-bright: #293241;
+
+  /* Accents */
+  --amber-bond:      #FFB000;
+  --amber-partial:   #FFCA3A;
+  --cyan-evidence:   #00E5FF;
+  --violet-consensus:#7C5CFF;
+  --lime-passed:     #B6FF3B;
+  --red-failed:      #FF4D2E;
+
+  /* Text */
+  --text-signal: #F8FAFC;
+  --text-fog:    #B8C0CC;
+  --text-steel:  #6F7A8A;
+
+  /* Radius */
+  --r-btn:   8px;
+  --r-card:  18px;
+  --r-panel: 22px;
+  --r-modal: 24px;
+  --r-input: 12px;
+  --r-badge: 999px;
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--port-black);
+  color: var(--text-signal);
+  font-family: var(--font-sora), system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  min-height: 100dvh;
+}
+
+/* ── Typography helpers ──────────────────────────────────────────────────── */
+.font-display  { font-family: var(--font-unbounded), sans-serif; }
+.font-body     { font-family: var(--font-sora), sans-serif; }
+.font-mono     { font-family: var(--font-jetbrains), monospace; }
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--port-panel); }
+::-webkit-scrollbar-thumb { background: var(--port-border-bright); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-steel); }
+
+/* ── Selection ───────────────────────────────────────────────────────────── */
+::selection { background: rgba(124, 92, 255, 0.28); color: var(--text-signal); }
+
+/* ── Focus ring ──────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--amber-bond);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
+@keyframes stampIn {
+  0%   { transform: scale(1.4) rotate(-6deg); opacity: 0; }
+  100% { transform: scale(1)   rotate(-3deg); opacity: 1; }
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+@keyframes scanLine {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(400%); }
+}
+
+@keyframes railPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,176,0,0); }
+  50%       { box-shadow: 0 0 12px 2px rgba(255,176,0,0.35); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes borderGlow {
+  0%, 100% { border-color: rgba(255,176,0,0.3); }
+  50%       { border-color: rgba(255,176,0,0.7); }
+}
+
+.animate-stamp-in  { animation: stampIn  0.45s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.animate-glow      { animation: glowPulse 2.4s ease-in-out infinite; }
+.animate-scan      { animation: scanLine  4s linear infinite; }
+.animate-rail      { animation: railPulse 2s ease-in-out infinite; }
+.animate-fade-up   { animation: fadeUp 0.5s ease forwards; }
+.animate-border-glow { animation: borderGlow 2s ease-in-out infinite; }
+
+/* ── Utility layers ──────────────────────────────────────────────────────── */
+@layer utilities {
+  /* Port grid background */
+  .bg-port-grid {
+    background-image:
+      linear-gradient(rgba(37,43,54,0.4) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(37,43,54,0.4) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  /* Amber radial spotlight */
+  .bg-amber-radial {
+    background: radial-gradient(ellipse at 50% 0%, rgba(255,176,0,0.10) 0%, transparent 65%);
+  }
+
+  /* Violet radial spotlight */
+  .bg-violet-radial {
+    background: radial-gradient(ellipse at 50% 50%, rgba(124,92,255,0.08) 0%, transparent 70%);
+  }
+
+  /* Glow borders */
+  .border-amber-glow { border-color: rgba(255,176,0,0.4) !important; box-shadow: 0 0 16px rgba(255,176,0,0.14); }
+  .border-cyan-glow  { border-color: rgba(0,229,255,0.4) !important; box-shadow: 0 0 16px rgba(0,229,255,0.14); }
+  .border-violet-glow{ border-color: rgba(124,92,255,0.4) !important; box-shadow: 0 0 16px rgba(124,92,255,0.14); }
+
+  /* Scanline overlay — used inside consensus chamber */
+  .scanline-overlay {
+    position: relative;
+    overflow: hidden;
+  }
+  .scanline-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(transparent 50%, rgba(0,0,0,0.04) 50%);
+    background-size: 100% 4px;
+    pointer-events: none;
+    opacity: 0.6;
+  }
+
+  /* Cargo hover tilt */
+  .cargo-tilt {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .cargo-tilt:hover {
+    transform: perspective(600px) rotateX(1.5deg) rotateY(-1deg) translateY(-3px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+
+  /* Hash text */
+  .hash-text {
+    font-family: var(--font-jetbrains), monospace;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+  }
+
+  /* Truncated address */
+  .addr-truncate {
+    font-family: var(--font-jetbrains), monospace;
+    font-size: 12px;
+  }
+}
+
+/* ── Wallet connect panel ─────────────────────────────────────────────────── */
+/* Custom injected wallet UI — no RainbowKit */

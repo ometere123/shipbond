@@ -1,0 +1,27 @@
+[project]
+project_id = "shipbond"
+
+[db]
+port = 54322
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = false   # auth handled by iron-session + wallet signatures
+
+[storage]
+enabled = true
+
+[storage.buckets.shipbond-evidence]
+public = false
+file_size_limit = "10MiB"
+allowed_mime_types = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "text/plain",
+  "text/markdown",
+  "application/json",
+]
