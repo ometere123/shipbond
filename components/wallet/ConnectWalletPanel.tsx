@@ -1,6 +1,7 @@
 "use client";
 
 import { useAccount, useConnect, useChainId, useSwitchChain } from "wagmi";
+// useSwitchChain kept for wagmi chain state sync; actual switch uses addAndSwitchToBradbury
 import { useWalletAuth } from "@/hooks/useWalletAuth";
 import { ShipBondLogo } from "@/components/brand/ShipBondLogo";
 import { Button } from "@/components/ui/Button";
@@ -17,7 +18,36 @@ import {
   Zap,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
+
+const BRADBURY_CHAIN_PARAMS = {
+  chainId: "0x107D", // 4221 in hex
+  chainName: "GenLayer Bradbury",
+  nativeCurrency: { name: "GEN", symbol: "GEN", decimals: 18 },
+  rpcUrls: ["https://rpc.testnet-chain.genlayer.com"],
+  blockExplorerUrls: ["https://explorer-bradbury.genlayer.com"],
+};
+
+async function addAndSwitchToBradbury() {
+  const provider = (window as any).ethereum;
+  if (!provider) throw new Error("No wallet detected");
+  try {
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: BRADBURY_CHAIN_PARAMS.chainId }],
+    });
+  } catch (err: any) {
+    // 4902 = chain not added yet
+    if (err?.code === 4902 || err?.code === -32603) {
+      await provider.request({
+        method: "wallet_addEthereumChain",
+        params: [BRADBURY_CHAIN_PARAMS],
+      });
+    } else {
+      throw err;
+    }
+  }
+}
 
 const STEPS = [
   { id: "connect", label: "Connect Wallet" },
@@ -29,9 +59,23 @@ export function ConnectWalletPanel() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { connect, connectors, isPending: isConnecting } = useConnect();
-  const { switchChain, isPending: isSwitching } = useSwitchChain();
+  const { switchChain } = useSwitchChain();
   const { state: authState, error: authError, signIn } = useWalletAuth();
   const router = useRouter();
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
+
+  const handleSwitchNetwork = useCallback(async () => {
+    setSwitchError(null);
+    setIsSwitching(true);
+    try {
+      await addAndSwitchToBradbury();
+    } catch (err: any) {
+      setSwitchError(err?.message ?? "Failed to switch network");
+    } finally {
+      setIsSwitching(false);
+    }
+  }, []);
 
   const onBradbury = chainId === BRADBURY_CHAIN_ID;
   const isSigning = ["requesting_nonce","waiting_signature","verifying"].includes(authState);
@@ -213,13 +257,16 @@ export function ConnectWalletPanel() {
                     <span className="font-mono text-amber-bond">4221</span>.
                   </p>
                 </div>
+                {switchError && (
+                  <p className="font-body text-meta text-red-failed mb-3">{switchError}</p>
+                )}
                 <Button
                   fullWidth
                   variant="primary"
                   loading={isSwitching}
-                  onClick={() => switchChain({ chainId: BRADBURY_CHAIN_ID })}
+                  onClick={handleSwitchNetwork}
                 >
-                  Switch to GenLayer Bradbury
+                  Add &amp; Switch to GenLayer Bradbury
                 </Button>
               </>
             )}
