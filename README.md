@@ -10,6 +10,45 @@ Live -> **[shipbond.vercel.app](https://shipbond.vercel.app)**
 
 Contract -> [`0xaD92f4d63B513394741cD5b5B650FfFfc3865D24`](https://explorer-studio.genlayer.com/address/0xaD92f4d63B513394741cD5b5B650FfFfc3865D24) on GenLayer Studionet (Chain 61999)
 
+## Current Status
+
+ShipBond is fully pointed at GenLayer Studionet and the deployed protocol
+contract above.
+
+Last verified: **June 20, 2026**
+
+Green:
+
+- Next.js production build
+- TypeScript check
+- Production route smoke test
+- Live Studionet contract E2E
+- On-chain settlement and balance movement
+
+Latest live E2E result:
+
+```text
+milestone_id: 1
+status: SETTLED
+verdict: PASSED
+bond_action: RETURN
+settlement_status: COMPLETED
+```
+
+Verified transaction path:
+
+| Step | Transaction |
+|---|---|
+| Create milestone | [`0xed1dd486aca1521e0abcd9f884ea7fb2d8aa843cf6a9a7b03244703afcfb900a`](https://explorer-studio.genlayer.com/tx/0xed1dd486aca1521e0abcd9f884ea7fb2d8aa843cf6a9a7b03244703afcfb900a) |
+| Accept milestone | [`0x8ab2256649068dd5c2e0047f7fe6d1f42e0c73b8f68912f4d9bf10ed151041df`](https://explorer-studio.genlayer.com/tx/0x8ab2256649068dd5c2e0047f7fe6d1f42e0c73b8f68912f4d9bf10ed151041df) |
+| Submit evidence | [`0xee850bd65e9472dea8a0fac2b0c262bf4f003e1981b141f0cee03b2c59b3a28c`](https://explorer-studio.genlayer.com/tx/0xee850bd65e9472dea8a0fac2b0c262bf4f003e1981b141f0cee03b2c59b3a28c) |
+| Request review | [`0x461be27e895cfbbd488594690193be8af3918f1ba51900f3d33672e3b99e6649`](https://explorer-studio.genlayer.com/tx/0x461be27e895cfbbd488594690193be8af3918f1ba51900f3d33672e3b99e6649) |
+| Settle | [`0xc2fc1f146bfdb8d9d1b81e5dd879483dca5fa511d7dce47ceb3d3f68ad5ebc23`](https://explorer-studio.genlayer.com/tx/0xc2fc1f146bfdb8d9d1b81e5dd879483dca5fa511d7dce47ceb3d3f68ad5ebc23) |
+
+Known validation gap: the exact browser wallet click-through path was not
+automated in Codex because the local in-app browser helper was unavailable.
+The built UI routes and the live contract lifecycle were validated separately.
+
 ## How It Works
 
 ```text
@@ -132,6 +171,18 @@ The live e2e script expects funded Studionet test wallets in:
 ```env
 SHIPBOND_SPONSOR_KEY=
 SHIPBOND_BUILDER_KEY=
+```
+
+The E2E runner defaults to `ACCEPTED` transaction waiting for faster Studionet
+feedback. Set `SHIPBOND_WAIT_STATUS=FINALIZED` only when you intentionally want
+to wait for finality.
+
+Production route smoke:
+
+```bash
+npm run build
+set SHIPBOND_BASE_URL=http://127.0.0.1:3001
+node scripts/route-smoke.mjs
 ```
 
 ## Design Notes

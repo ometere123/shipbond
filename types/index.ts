@@ -55,7 +55,7 @@ export interface Submission {
   milestone_id: string;
   builder_wallet: string;
   repo_link: string;
-  commit_hash: string;
+  full_commit_hash: string;
   readme_url: string;
   deployment_link: string;
   contract_address: string;
