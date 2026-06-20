@@ -33,8 +33,9 @@ export default async function BondDockPage() {
       {rows.length === 0 ? (
         <EmptyState
           icon={<Shield size={28} />}
-          title="No builder bonds yet"
-          description="Browse the Proof Port and accept an open milestone to start building."
+          title="No accepted bonds yet"
+          description="Browse Proof Port to find funded work and lock a bond."
+          actionHref={{ label: "Explore Proof Port", href: "/app/port" }}
         />
       ) : (
         <div className="space-y-3">

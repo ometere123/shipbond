@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "./Button";
 
@@ -6,10 +7,11 @@ interface EmptyStateProps {
   title: string;
   description?: string;
   action?: { label: string; onClick: () => void };
+  actionHref?: { label: string; href: string };
   className?: string;
 }
 
-export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, action, actionHref, className }: EmptyStateProps) {
   return (
     <div
       className={cn(
@@ -31,6 +33,11 @@ export function EmptyState({ icon, title, description, action, className }: Empt
         <Button variant="secondary" size="sm" onClick={action.onClick} className="mt-6">
           {action.label}
         </Button>
+      )}
+      {actionHref && (
+        <Link href={actionHref.href} className="mt-6">
+          <Button variant="primary" size="sm">{actionHref.label}</Button>
+        </Link>
       )}
     </div>
   );

@@ -41,8 +41,9 @@ export default async function ControlTowerPage() {
       {milestones.length === 0 ? (
         <EmptyState
           icon={<Anchor size={28} />}
-          title="No sponsored milestones"
+          title="No sponsored milestones yet"
           description="Post a funded milestone to start receiving bonded builder submissions."
+          actionHref={{ label: "Create Milestone", href: "/app/milestones/new" }}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
