@@ -32,5 +32,5 @@ export const studionetChain = {
 export const SHIPBOND_CONTRACT = (
   process.env.NEXT_PUBLIC_SHIPBOND_PROTOCOL_ADDRESS ??
   process.env.NEXT_PUBLIC_SHIPBOND_CONTRACT_ADDRESS ??
-  "0xaD92f4d63B513394741cD5b5B650FfFfc3865D24"
+  "0xcD7485a0D6a34c44Af39dF7D35D282f26A46B1De"
 ) as `0x${string}`;
