@@ -31,18 +31,28 @@ export interface ResolveMilestoneIdParams {
   title:         string;
   rewardWei:     string;
   bondWei:       string;
+  maxRetries?:   number;
+  retryDelayMs?: number;
 }
 
 export async function resolveCreatedMilestoneId(
   params: ResolveMilestoneIdParams,
 ): Promise<string | null> {
-  const { sponsorWallet, termsHash, title, rewardWei, bondWei } = params;
+  const {
+    sponsorWallet,
+    termsHash,
+    title,
+    rewardWei,
+    bondWei,
+    maxRetries = MAX_RETRIES,
+    retryDelayMs = RETRY_DELAY_MS,
+  } = params;
   const wallet = sponsorWallet.toLowerCase();
   const checksumWallet = getAddress(sponsorWallet);
 
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
     if (attempt > 0) {
-      await sleep(RETRY_DELAY_MS * attempt); // linear backoff: 2s, 4s, 6s, 8s
+      await sleep(retryDelayMs * attempt);
     }
 
     try {

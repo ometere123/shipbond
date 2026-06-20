@@ -19,23 +19,31 @@ export function useWalletAuth(): UseWalletAuthResult {
   const [state, setState] = useState<AuthState>("idle");
   const [error, setError] = useState<string | null>(null);
 
-  // Rehydrate auth state from session cookie on mount, and sign out if wallet switched
+  // Rehydrate auth state from session cookie on mount only
   useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d) => { if (d.authenticated) setState("authenticated"); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sign out when MetaMask switches to a different wallet mid-session
+  useEffect(() => {
+    if (!address) return;
     fetch("/api/auth/me")
       .then((r) => r.json())
       .then((d) => {
         if (!d.authenticated) return;
-        // If MetaMask wallet differs from session wallet, invalidate the session
-        if (address && d.walletAddress && d.walletAddress.toLowerCase() !== address.toLowerCase()) {
+        if (d.walletAddress && d.walletAddress.toLowerCase() !== address.toLowerCase()) {
           fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
           disconnect();
           setState("idle");
-          return;
         }
-        setState("authenticated");
       })
       .catch(() => {});
-  }, [address, disconnect]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address]);
 
   const signIn = useCallback(async () => {
     if (!address) {

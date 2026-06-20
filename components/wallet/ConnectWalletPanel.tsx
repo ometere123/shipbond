@@ -61,6 +61,7 @@ export function ConnectWalletPanel() {
   const { state: authState, error: authError, signIn } = useWalletAuth();
   const router = useRouter();
   const [isSwitching, setIsSwitching] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [switchError, setSwitchError] = useState<string | null>(null);
 
   const handleSwitchNetwork = useCallback(async () => {
@@ -81,10 +82,20 @@ export function ConnectWalletPanel() {
 
   // Redirect after successful auth
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/app/port");
-    }
-  }, [isAuthenticated, router]);
+    if (!isAuthenticated || isRedirecting) return;
+
+    setIsRedirecting(true);
+    router.replace("/app/port");
+    router.refresh();
+
+    const fallback = window.setTimeout(() => {
+      if (window.location.pathname === "/connect") {
+        window.location.assign("/app/port");
+      }
+    }, 1200);
+
+    return () => window.clearTimeout(fallback);
+  }, [isAuthenticated, isRedirecting, router]);
 
   const injectedConnector = connectors.find((c) => c.type === "injected");
 
@@ -317,7 +328,7 @@ export function ConnectWalletPanel() {
               </Button>
             )}
 
-            {isAuthenticated && (
+            {(isAuthenticated || isRedirecting) && (
               <p className="font-mono text-meta text-lime-passed">
                 Verified — redirecting…
               </p>
