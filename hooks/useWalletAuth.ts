@@ -19,13 +19,23 @@ export function useWalletAuth(): UseWalletAuthResult {
   const [state, setState] = useState<AuthState>("idle");
   const [error, setError] = useState<string | null>(null);
 
-  // Rehydrate auth state from session cookie on mount
+  // Rehydrate auth state from session cookie on mount, and sign out if wallet switched
   useEffect(() => {
     fetch("/api/auth/me")
       .then((r) => r.json())
-      .then((d) => { if (d.authenticated) setState("authenticated"); })
+      .then((d) => {
+        if (!d.authenticated) return;
+        // If MetaMask wallet differs from session wallet, invalidate the session
+        if (address && d.walletAddress && d.walletAddress.toLowerCase() !== address.toLowerCase()) {
+          fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+          disconnect();
+          setState("idle");
+          return;
+        }
+        setState("authenticated");
+      })
       .catch(() => {});
-  }, []);
+  }, [address, disconnect]);
 
   const signIn = useCallback(async () => {
     if (!address) {
@@ -75,6 +85,15 @@ export function useWalletAuth(): UseWalletAuthResult {
       setState("error");
     }
   }, [address, signMessageAsync]);
+
+  // Auto sign-out when MetaMask account changes mid-session
+  useEffect(() => {
+    if (state !== "authenticated") return;
+    if (!address) {
+      fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+      setState("idle");
+    }
+  }, [address, state]);
 
   const signOut = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
