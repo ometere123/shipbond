@@ -1,4 +1,4 @@
-# v0.4.0
+# v0.2.21
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 
 from genlayer import *
@@ -35,6 +35,12 @@ SETTLEMENT_COMPLETED = "COMPLETED"
 
 STUDIONET_EXPLORER = "https://explorer-studio.genlayer.com"
 STUDIONET_CHAIN_ID = "61999"
+
+# Builder-triggered recovery: if the sponsor fails to act (request_review
+# after evidence submission, or propose_human_settlement after a
+# NEEDS_HUMAN_REVIEW verdict) within this window, the builder can reclaim
+# the reward and bond so funds are never locked indefinitely.
+SPONSOR_RESPONSE_TIMEOUT_SECONDS = u256(7 * 24 * 60 * 60)  # 7 days
 
 
 @gl.evm.contract_interface
@@ -74,22 +80,22 @@ class ShipBondProtocol(gl.Contract):
         deadline: u256,
     ) -> str:
         if not title or len(title.strip()) < 3:
-            raise Exception("Title too short")
+            raise gl.vm.UserError("Title too short")
 
         if not description or len(description.strip()) < 20:
-            raise Exception("Description too short")
+            raise gl.vm.UserError("Description too short")
 
         if not _is_sha256_hex(terms_hash):
-            raise Exception("terms_hash must be a 64-character SHA-256 hex string")
+            raise gl.vm.UserError("terms_hash must be a 64-character SHA-256 hex string")
 
         if gl.message.value <= u256(0):
-            raise Exception("Reward must be funded with GEN value")
+            raise gl.vm.UserError("Reward must be funded with GEN value")
 
         if bond_wei <= u256(0):
-            raise Exception("bond_wei must be greater than zero")
+            raise gl.vm.UserError("bond_wei must be greater than zero")
 
         if deadline != u256(0) and deadline <= _now_u256():
-            raise Exception("Deadline must be in the future, or zero for no deadline")
+            raise gl.vm.UserError("Deadline must be in the future, or zero for no deadline")
 
         sponsor = str(gl.message.sender_address)
         self.milestone_count += u256(1)
@@ -145,20 +151,20 @@ class ShipBondProtocol(gl.Contract):
         state = self._get_milestone_state(milestone_id)
 
         if state["status"] != STATUS_OPEN:
-            raise Exception("Milestone is not open")
+            raise gl.vm.UserError("Milestone is not open")
 
         builder = str(gl.message.sender_address)
 
         if builder == state["sponsor"]:
-            raise Exception("Sponsor cannot accept own milestone as builder")
+            raise gl.vm.UserError("Sponsor cannot accept own milestone as builder")
 
         deadline = _u256_from_state(state, "deadline")
         if deadline != u256(0) and _now_u256() > deadline:
-            raise Exception("Milestone deadline has passed")
+            raise gl.vm.UserError("Milestone deadline has passed")
 
         bond_wei = _u256_from_state(state, "bond_wei")
         if gl.message.value != bond_wei:
-            raise Exception("Must lock exactly bond_wei")
+            raise gl.vm.UserError("Must lock exactly bond_wei")
 
         state["builder"] = builder
         state["bond_deposited"] = str(gl.message.value)
@@ -169,7 +175,7 @@ class ShipBondProtocol(gl.Contract):
 
     # ───────────────────────────────────────────────────────────────────────
     # Builder submits public evidence.
-    # Only public refs go on-chain. Private files stay in Supabase.
+    # All evidence is public — validators can only verify what they can fetch.
     # ───────────────────────────────────────────────────────────────────────
     @gl.public.write
     def submit_evidence(
@@ -181,17 +187,17 @@ class ShipBondProtocol(gl.Contract):
         state = self._get_milestone_state(milestone_id)
 
         if state["status"] != STATUS_ACCEPTED:
-            raise Exception("Can only submit evidence after acceptance")
+            raise gl.vm.UserError("Can only submit evidence after acceptance")
 
         if str(gl.message.sender_address) != state["builder"]:
-            raise Exception("Only accepted builder can submit evidence")
+            raise gl.vm.UserError("Only accepted builder can submit evidence")
 
         deadline = _u256_from_state(state, "deadline")
         if deadline != u256(0) and _now_u256() > deadline:
-            raise Exception("Milestone deadline has passed")
+            raise gl.vm.UserError("Milestone deadline has passed")
 
         if not _is_sha256_hex(evidence_digest):
-            raise Exception("evidence_digest must be a 64-character SHA-256 hex string")
+            raise gl.vm.UserError("evidence_digest must be a 64-character SHA-256 hex string")
 
         refs = _parse_and_validate_evidence_refs(evidence_refs_json)
 
@@ -216,13 +222,13 @@ class ShipBondProtocol(gl.Contract):
         state = self._get_milestone_state(milestone_id)
 
         if state["status"] != STATUS_SUBMITTED:
-            raise Exception("Evidence must be submitted before review")
+            raise gl.vm.UserError("Evidence must be submitted before review")
 
         if str(gl.message.sender_address) != state["sponsor"]:
-            raise Exception("Only the sponsor can request GenLayer review")
+            raise gl.vm.UserError("Only the sponsor can request GenLayer review")
 
         if not state["evidence_digest"] or not state["evidence_refs_json"]:
-            raise Exception("No evidence submitted")
+            raise gl.vm.UserError("No evidence submitted")
 
         state["status"] = STATUS_REVIEWING
         state["review_count"] = str(int(state.get("review_count", "0")) + 1)
@@ -253,6 +259,7 @@ class ShipBondProtocol(gl.Contract):
                 my_data.get("verdict") == leader_data.get("verdict")
                 and my_data.get("bond_action") == leader_data.get("bond_action")
                 and my_data.get("settlement_status") == leader_data.get("settlement_status")
+                and my_data.get("recommended_payout_bps") == leader_data.get("recommended_payout_bps")
             )
 
         result = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
@@ -308,32 +315,32 @@ class ShipBondProtocol(gl.Contract):
         state = self._get_milestone_state(milestone_id)
 
         if state["status"] != STATUS_REVIEWED:
-            raise Exception("Review must be completed before settlement")
+            raise gl.vm.UserError("Review must be completed before settlement")
 
         verdict = state["verdict"]
 
         if verdict == VERDICT_NEEDS_HUMAN_REVIEW:
-            raise Exception("Human review settlement requires mutual agreement")
+            raise gl.vm.UserError("Human review settlement requires mutual agreement")
 
         if state["settlement_status"] not in (
             SETTLEMENT_AUTO_SETTLEABLE,
             SETTLEMENT_PARTIAL_AUTO_SETTLEABLE,
         ):
-            raise Exception("This verdict is not automatically settleable")
+            raise gl.vm.UserError("This verdict is not automatically settleable")
 
         reward = _u256_from_state(state, "reward_deposited")
         bond = _u256_from_state(state, "bond_deposited")
 
         if reward <= u256(0):
-            raise Exception("No reward deposited")
+            raise gl.vm.UserError("No reward deposited")
         if bond <= u256(0):
-            raise Exception("No bond deposited")
+            raise gl.vm.UserError("No bond deposited")
 
         sponsor = state["sponsor"]
         builder = state["builder"]
 
         if not sponsor or not builder:
-            raise Exception("Missing sponsor or builder")
+            raise gl.vm.UserError("Missing sponsor or builder")
 
         state["status"] = STATUS_SETTLED
         state["settlement_status"] = SETTLEMENT_COMPLETED
@@ -353,7 +360,7 @@ class ShipBondProtocol(gl.Contract):
         if verdict == VERDICT_PARTIAL_PASS:
             payout_bps = _u256_from_state(state, "recommended_payout_bps")
             if payout_bps <= u256(0) or payout_bps >= u256(10000):
-                raise Exception("Invalid partial payout bps")
+                raise gl.vm.UserError("Invalid partial payout bps")
             builder_reward = (reward * payout_bps) // u256(10000)
             sponsor_refund = reward - builder_reward
             if builder_reward + bond > u256(0):
@@ -362,7 +369,7 @@ class ShipBondProtocol(gl.Contract):
                 _send_gen(sponsor, sponsor_refund)
             return
 
-        raise Exception("Unsupported verdict for settlement")
+        raise gl.vm.UserError("Unsupported verdict for settlement")
 
     # ───────────────────────────────────────────────────────────────────────
     # Human-review fallback.
@@ -378,26 +385,26 @@ class ShipBondProtocol(gl.Contract):
         state = self._get_milestone_state(milestone_id)
 
         if str(gl.message.sender_address) != state["sponsor"]:
-            raise Exception("Only sponsor can propose human settlement")
+            raise gl.vm.UserError("Only sponsor can propose human settlement")
 
         if state["status"] != STATUS_REVIEWED:
-            raise Exception("Review must be completed first")
+            raise gl.vm.UserError("Review must be completed first")
 
         if state["verdict"] != VERDICT_NEEDS_HUMAN_REVIEW:
-            raise Exception("Human settlement only allowed after NEEDS_HUMAN_REVIEW")
+            raise gl.vm.UserError("Human settlement only allowed after NEEDS_HUMAN_REVIEW")
 
         if builder_payout_bps > u256(10000):
-            raise Exception("builder_payout_bps must be between 0 and 10000")
+            raise gl.vm.UserError("builder_payout_bps must be between 0 and 10000")
 
         normalized_bond_action = str(bond_action).strip().upper()
         if normalized_bond_action not in (BOND_ACTION_RETURN, BOND_ACTION_SLASH):
-            raise Exception("bond_action must be RETURN or SLASH")
+            raise gl.vm.UserError("bond_action must be RETURN or SLASH")
 
         if not reason or len(reason.strip()) < 5:
-            raise Exception("Human settlement reason too short")
+            raise gl.vm.UserError("Human settlement reason too short")
 
         if _contains_forbidden_instruction(reason):
-            raise Exception("Human settlement reason contains forbidden instruction")
+            raise gl.vm.UserError("Human settlement reason contains forbidden instruction")
 
         state["human_payout_bps"] = str(builder_payout_bps)
         state["human_bond_action"] = normalized_bond_action
@@ -413,10 +420,10 @@ class ShipBondProtocol(gl.Contract):
         state = self._get_milestone_state(milestone_id)
 
         if str(gl.message.sender_address) != state["builder"]:
-            raise Exception("Only builder can accept human settlement")
+            raise gl.vm.UserError("Only builder can accept human settlement")
 
         if state["status"] != STATUS_HUMAN_SETTLEMENT_PROPOSED:
-            raise Exception("No human settlement proposal is active")
+            raise gl.vm.UserError("No human settlement proposal is active")
 
         state["human_settlement_accepted"] = True
         self._save_milestone_state(milestone_id, state)
@@ -426,18 +433,18 @@ class ShipBondProtocol(gl.Contract):
         state = self._get_milestone_state(milestone_id)
 
         if state["status"] != STATUS_HUMAN_SETTLEMENT_PROPOSED:
-            raise Exception("No human settlement proposal is active")
+            raise gl.vm.UserError("No human settlement proposal is active")
 
         if not bool(state["human_settlement_accepted"]):
-            raise Exception("Builder has not accepted the human settlement")
+            raise gl.vm.UserError("Builder has not accepted the human settlement")
 
         reward = _u256_from_state(state, "reward_deposited")
         bond = _u256_from_state(state, "bond_deposited")
 
         if reward <= u256(0):
-            raise Exception("No reward deposited")
+            raise gl.vm.UserError("No reward deposited")
         if bond <= u256(0):
-            raise Exception("No bond deposited")
+            raise gl.vm.UserError("No bond deposited")
 
         sponsor = state["sponsor"]
         builder = state["builder"]
@@ -466,6 +473,62 @@ class ShipBondProtocol(gl.Contract):
             _send_gen(sponsor, sponsor_total)
 
     # ───────────────────────────────────────────────────────────────────────
+    # Builder-triggered recovery.
+    #
+    # If the sponsor goes unresponsive after the builder has done their
+    # part — evidence submitted but review never requested, or a
+    # NEEDS_HUMAN_REVIEW verdict but no human settlement ever proposed —
+    # the reward and bond would otherwise be locked forever, since only
+    # the sponsor can trigger request_review / propose_human_settlement.
+    # After SPONSOR_RESPONSE_TIMEOUT_SECONDS the builder can reclaim the
+    # full reward + bond and force the milestone to a terminal state.
+    # ───────────────────────────────────────────────────────────────────────
+    @gl.public.write
+    def claim_sponsor_timeout(self, milestone_id: str) -> None:
+        state = self._get_milestone_state(milestone_id)
+
+        if str(gl.message.sender_address) != state["builder"]:
+            raise gl.vm.UserError("Only the accepted builder can claim a sponsor timeout")
+
+        now = _now_u256()
+
+        if state["status"] == STATUS_SUBMITTED:
+            reference_ts = _iso_to_u256(state["submitted_at"])
+            if reference_ts == u256(0):
+                raise gl.vm.UserError("Missing submission timestamp")
+        elif state["status"] == STATUS_REVIEWED and state["verdict"] == VERDICT_NEEDS_HUMAN_REVIEW:
+            reference_ts = _iso_to_u256(state["reviewed_at"])
+            if reference_ts == u256(0):
+                raise gl.vm.UserError("Missing review timestamp")
+        else:
+            raise gl.vm.UserError("No sponsor action is pending for this milestone")
+
+        if now < reference_ts + SPONSOR_RESPONSE_TIMEOUT_SECONDS:
+            raise gl.vm.UserError("Sponsor response window has not elapsed")
+
+        reward = _u256_from_state(state, "reward_deposited")
+        bond = _u256_from_state(state, "bond_deposited")
+        total = reward + bond
+
+        if total <= u256(0):
+            raise gl.vm.UserError("No funds to release")
+
+        builder = state["builder"]
+
+        state["status"] = STATUS_SETTLED
+        state["settlement_status"] = SETTLEMENT_COMPLETED
+        state["settled_at"] = _now_iso()
+        state["reward_deposited"] = "0"
+        state["bond_deposited"] = "0"
+        state["human_review_reason"] = (
+            "Sponsor did not respond within the recovery timeout; "
+            "builder claimed reward and bond."
+        )
+        self._save_milestone_state(milestone_id, state)
+
+        _send_gen(builder, total)
+
+    # ───────────────────────────────────────────────────────────────────────
     # Cancel — sponsor only, before builder accepts.
     # ───────────────────────────────────────────────────────────────────────
     @gl.public.write
@@ -473,10 +536,10 @@ class ShipBondProtocol(gl.Contract):
         state = self._get_milestone_state(milestone_id)
 
         if str(gl.message.sender_address) != state["sponsor"]:
-            raise Exception("Only sponsor can cancel")
+            raise gl.vm.UserError("Only sponsor can cancel")
 
         if state["status"] != STATUS_OPEN:
-            raise Exception("Can only cancel an open milestone")
+            raise gl.vm.UserError("Can only cancel an open milestone")
 
         refund = _u256_from_state(state, "reward_deposited")
         state["status"] = STATUS_CANCELLED
@@ -557,18 +620,34 @@ class ShipBondProtocol(gl.Contract):
         state = self._get_milestone_state(milestone_id)
         return state["status"] == STATUS_SETTLED
 
+    @gl.public.view
+    def is_sponsor_timeout_claimable(self, milestone_id: str) -> bool:
+        state = self._get_milestone_state(milestone_id)
+
+        if state["status"] == STATUS_SUBMITTED:
+            reference_ts = _iso_to_u256(state["submitted_at"])
+        elif state["status"] == STATUS_REVIEWED and state["verdict"] == VERDICT_NEEDS_HUMAN_REVIEW:
+            reference_ts = _iso_to_u256(state["reviewed_at"])
+        else:
+            return False
+
+        if reference_ts == u256(0):
+            return False
+
+        return _now_u256() >= reference_ts + SPONSOR_RESPONSE_TIMEOUT_SECONDS
+
     # ───────────────────────────────────────────────────────────────────────
     # Internal helpers
     # ───────────────────────────────────────────────────────────────────────
     def _get_milestone_state(self, milestone_id: str) -> dict:
         if not milestone_id:
-            raise Exception("milestone_id is required")
+            raise gl.vm.UserError("milestone_id is required")
         raw = self.milestones.get(milestone_id, "")
         if not raw:
-            raise Exception("Milestone not found")
+            raise gl.vm.UserError("Milestone not found")
         data = json.loads(raw)
         if not isinstance(data, dict):
-            raise Exception("Invalid milestone state")
+            raise gl.vm.UserError("Invalid milestone state")
         return data
 
     def _save_milestone_state(self, milestone_id: str, state: dict) -> None:
@@ -617,7 +696,7 @@ def _fetch_evidence(refs: dict) -> dict:
     if raw_readme_url and raw_readme_url not in ("", "N/A"):
         try:
             resp = gl.nondet.web.request(raw_readme_url, method="GET")
-            if resp.status_code == 200:
+            if resp.status == 200:
                 content = resp.body.decode("utf-8", errors="replace")[:4000]
                 result["readme_fetch_status"] = "ok"
                 result["readme_content"] = content
@@ -626,11 +705,11 @@ def _fetch_evidence(refs: dict) -> dict:
                     flags.append("readme_too_short")
                 if result["readme_red_flags"] != flags:
                     result["readme_red_flags"] = flags
-            elif resp.status_code == 404:
+            elif resp.status == 404:
                 result["readme_fetch_status"] = "not_found"
                 result["readme_red_flags"] = ["readme_404_repo_does_not_exist_or_no_readme"]
             else:
-                result["readme_fetch_status"] = f"http_{resp.status_code}"
+                result["readme_fetch_status"] = f"http_{resp.status}"
         except Exception as e:
             result["readme_fetch_status"] = "fetch_error"
             result["readme_content"] = str(e)[:200]
@@ -639,14 +718,14 @@ def _fetch_evidence(refs: dict) -> dict:
     if raw_key_file_url and raw_key_file_url not in ("", "N/A"):
         try:
             resp = gl.nondet.web.request(raw_key_file_url, method="GET")
-            if resp.status_code == 200:
+            if resp.status == 200:
                 content = resp.body.decode("utf-8", errors="replace")[:3000]
                 result["key_file_fetch_status"] = "ok"
                 result["key_file_content"] = content
-            elif resp.status_code == 404:
+            elif resp.status == 404:
                 result["key_file_fetch_status"] = "not_found"
             else:
-                result["key_file_fetch_status"] = f"http_{resp.status_code}"
+                result["key_file_fetch_status"] = f"http_{resp.status}"
         except Exception:
             result["key_file_fetch_status"] = "fetch_error"
 
@@ -654,7 +733,7 @@ def _fetch_evidence(refs: dict) -> dict:
     if deployment_url and deployment_url not in ("", "N/A"):
         try:
             resp = gl.nondet.web.request(deployment_url, method="GET")
-            if resp.status_code == 200:
+            if resp.status == 200:
                 content = resp.body.decode("utf-8", errors="replace")[:3000]
                 result["deployment_fetch_status"] = "ok"
                 result["deployment_content"] = content
@@ -674,11 +753,11 @@ def _fetch_evidence(refs: dict) -> dict:
                 if "example.com" in deployment_url.lower():
                     flags.append("deployment_is_example.com")
                 result["deployment_red_flags"] = flags
-            elif resp.status_code == 404:
+            elif resp.status == 404:
                 result["deployment_fetch_status"] = "not_found"
                 result["deployment_red_flags"] = ["deployment_404"]
             else:
-                result["deployment_fetch_status"] = f"http_{resp.status_code}"
+                result["deployment_fetch_status"] = f"http_{resp.status}"
         except Exception as e:
             result["deployment_fetch_status"] = "fetch_error"
             result["deployment_content"] = str(e)[:200]
@@ -689,11 +768,11 @@ def _fetch_evidence(refs: dict) -> dict:
         try:
             tx_url = f"{STUDIONET_EXPLORER}/tx/{accept_bond_tx_hash}"
             resp = gl.nondet.web.request(tx_url, method="GET")
-            if resp.status_code == 200:
+            if resp.status == 200:
                 result["tx_fetch_status"] = "ok"
                 result["tx_content"] = resp.body.decode("utf-8", errors="replace")[:1500]
             else:
-                result["tx_fetch_status"] = f"http_{resp.status_code}"
+                result["tx_fetch_status"] = f"http_{resp.status}"
             tx_tried = True
         except Exception:
             result["tx_fetch_status"] = "fetch_error"
@@ -703,11 +782,11 @@ def _fetch_evidence(refs: dict) -> dict:
         try:
             addr_url = f"{STUDIONET_EXPLORER}/address/{contract_address}"
             resp = gl.nondet.web.request(addr_url, method="GET")
-            if resp.status_code == 200:
+            if resp.status == 200:
                 result["tx_fetch_status"] = "ok"
                 result["tx_content"] = resp.body.decode("utf-8", errors="replace")[:1500]
             else:
-                result["tx_fetch_status"] = f"http_{resp.status_code}"
+                result["tx_fetch_status"] = f"http_{resp.status}"
         except Exception:
             result["tx_fetch_status"] = "fetch_error"
 
@@ -851,7 +930,7 @@ def _parse_review_result(raw) -> dict:
     elif isinstance(raw, str):
         data = json.loads(raw.strip())
     else:
-        raise Exception("LLM output must be JSON object")
+        raise gl.vm.UserError("LLM output must be JSON object")
 
     verdict = str(data.get("verdict", "")).strip().upper()
     bond_action = str(data.get("bond_action", "")).strip().upper()
@@ -867,7 +946,7 @@ def _parse_review_result(raw) -> dict:
     human_review_reason = str(data.get("human_review_reason", ""))[:500]
 
     if verdict not in (VERDICT_PASSED, VERDICT_PARTIAL_PASS, VERDICT_FAILED, VERDICT_NEEDS_HUMAN_REVIEW):
-        raise Exception(f"Invalid verdict: {verdict}")
+        raise gl.vm.UserError(f"Invalid verdict: {verdict}")
 
     if verdict == VERDICT_PASSED:
         bond_action = BOND_ACTION_RETURN
@@ -922,6 +1001,16 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _iso_to_u256(value: str) -> u256:
+    if not value:
+        return u256(0)
+    try:
+        dt = datetime.fromisoformat(value)
+        return u256(int(dt.timestamp()))
+    except Exception:
+        return u256(0)
+
+
 def _u256_from_state(state: dict, key: str) -> u256:
     return u256(int(str(state.get(key, "0"))))
 
@@ -952,9 +1041,9 @@ def _is_full_commit_hash(value: str) -> bool:
 
 def _send_gen(to_address: str, amount: u256) -> None:
     if not to_address:
-        raise Exception("Missing recipient address")
+        raise gl.vm.UserError("Missing recipient address")
     if amount <= u256(0):
-        raise Exception("Transfer amount must be positive")
+        raise gl.vm.UserError("Transfer amount must be positive")
     _Recipient(Address(to_address)).emit_transfer(value=amount)
 
 
@@ -980,18 +1069,18 @@ def _contains_forbidden_instruction(value: str) -> bool:
 
 def _normalise_checklist(value) -> list:
     if not isinstance(value, list):
-        raise Exception("acceptance_criteria_checklist must be a list")
+        raise gl.vm.UserError("acceptance_criteria_checklist must be a list")
     if len(value) == 0:
-        raise Exception("acceptance_criteria_checklist cannot be empty")
+        raise gl.vm.UserError("acceptance_criteria_checklist cannot be empty")
     if len(value) > 20:
-        raise Exception("acceptance_criteria_checklist is too long")
+        raise gl.vm.UserError("acceptance_criteria_checklist is too long")
     output = []
     for item in value:
         text = item.strip() if isinstance(item, str) else json.dumps(item, sort_keys=True)
         if not text:
-            raise Exception("acceptance_criteria_checklist contains empty item")
+            raise gl.vm.UserError("acceptance_criteria_checklist contains empty item")
         if _contains_forbidden_instruction(text):
-            raise Exception("acceptance_criteria_checklist contains forbidden instruction")
+            raise gl.vm.UserError("acceptance_criteria_checklist contains forbidden instruction")
         output.append(text[:500])
     return output
 
@@ -1002,9 +1091,9 @@ def _require_nonempty_string(refs: dict, key: str, max_len: int) -> str:
         value = str(value)
     value = value.strip()
     if not value:
-        raise Exception(f"Missing evidence field: {key}")
+        raise gl.vm.UserError(f"Missing evidence field: {key}")
     if _contains_forbidden_instruction(value):
-        raise Exception(f"Evidence field contains forbidden instruction: {key}")
+        raise gl.vm.UserError(f"Evidence field contains forbidden instruction: {key}")
     return value[:max_len]
 
 
@@ -1014,25 +1103,25 @@ def _optional_string(refs: dict, key: str, max_len: int) -> str:
         value = str(value)
     value = value.strip()
     if value and _contains_forbidden_instruction(value):
-        raise Exception(f"Evidence field contains forbidden instruction: {key}")
+        raise gl.vm.UserError(f"Evidence field contains forbidden instruction: {key}")
     return value[:max_len]
 
 
 def _parse_and_validate_evidence_refs(evidence_refs_json: str) -> dict:
     if not evidence_refs_json or len(evidence_refs_json) > 20000:
-        raise Exception("evidence_refs_json missing or too large")
+        raise gl.vm.UserError("evidence_refs_json missing or too large")
 
     try:
         refs = json.loads(evidence_refs_json)
     except Exception:
-        raise Exception("evidence_refs_json must be valid JSON")
+        raise gl.vm.UserError("evidence_refs_json must be valid JSON")
 
     if not isinstance(refs, dict):
-        raise Exception("evidence_refs_json must be a JSON object")
+        raise gl.vm.UserError("evidence_refs_json must be a JSON object")
 
     full_commit_hash = _require_nonempty_string(refs, "full_commit_hash", 40)
     if not _is_full_commit_hash(full_commit_hash):
-        raise Exception("full_commit_hash must be a 40-character lowercase hex SHA-1 string")
+        raise gl.vm.UserError("full_commit_hash must be a 40-character lowercase hex SHA-1 string")
 
     return {
         # Required

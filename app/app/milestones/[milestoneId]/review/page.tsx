@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getMilestone } from "@/lib/data/milestones";
-import { getSubmissionByMilestone } from "@/lib/data/submissions";
 import { tryGetSessionWallet } from "@/lib/get-session-wallet";
 import { RequestReviewPanel } from "@/components/milestone/RequestReviewPanel";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -12,21 +11,19 @@ export const dynamic = "force-dynamic";
 
 export default async function RequestReviewPage({ params }: { params: Promise<{ milestoneId: string }> }) {
   const { milestoneId } = await params;
-  const [milestone, submission, session] = await Promise.all([
+  const [milestone, session] = await Promise.all([
     getMilestone(milestoneId),
-    getSubmissionByMilestone(milestoneId),
     tryGetSessionWallet(),
   ]);
 
   if (!milestone) notFound();
   if (!session) redirect("/connect");
 
-  const isSponsor = session.walletAddress === milestone.sponsor_wallet;
-  const isBuilder = submission?.builder_wallet === session.walletAddress;
+  const isSponsor = session.walletAddress.toLowerCase() === milestone.sponsor.toLowerCase();
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <Link href={`/app/port/${milestone.id}`} className="inline-flex items-center gap-2 font-mono text-meta text-steel hover:text-fog">
+      <Link href={`/app/port/${milestone.milestone_id}`} className="inline-flex items-center gap-2 font-mono text-meta text-steel hover:text-fog">
         <ArrowLeft size={13} />
         Back to milestone
       </Link>
@@ -38,17 +35,15 @@ export default async function RequestReviewPage({ params }: { params: Promise<{ 
 
       {!isSponsor ? (
         <EmptyState title="Sponsor only" description="Only the milestone sponsor can request a GenLayer review." />
-      ) : !submission?.evidence_digest ? (
+      ) : !milestone.evidence_digest ? (
         <EmptyState title="No evidence submitted" description="Evidence must be submitted before GenLayer can judge it." />
-      ) : !milestone.on_chain_id ? (
-        <EmptyState title="Missing on-chain ID" description="The milestone must be linked to GenLayer before review." />
-      ) : milestone.status !== "submitted" ? (
+      ) : milestone.status !== "SUBMITTED" ? (
         <EmptyState title="Review is not available" description={`Current milestone status: ${milestone.status}`} />
       ) : (
         <RequestReviewPanel
-          milestoneId={milestone.id}
-          onChainId={milestone.on_chain_id}
-          evidenceDigest={submission.evidence_digest}
+          milestoneId={milestone.milestone_id}
+          onChainId={milestone.milestone_id}
+          evidenceDigest={milestone.evidence_digest}
         />
       )}
     </div>

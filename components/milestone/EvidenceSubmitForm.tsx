@@ -10,7 +10,7 @@ import {
   type EvidencePacket,
 } from "@/lib/evidence-packet";
 import { useSubmitEvidence } from "@/hooks/useContractActions";
-import { AlertTriangle, FileUp, Loader2, Upload } from "lucide-react";
+import { AlertTriangle, Loader2, Upload } from "lucide-react";
 
 interface EvidenceSubmitFormProps {
   milestoneId: string;
@@ -53,7 +53,6 @@ export function EvidenceSubmitForm({ milestoneId, onChainId, title }: EvidenceSu
   const router = useRouter();
   const { execute } = useSubmitEvidence();
   const [form, setForm] = useState<EvidencePacket>(EMPTY);
-  const [files, setFiles] = useState<FileList | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<string | null>(null);
@@ -107,30 +106,9 @@ export function EvidenceSubmitForm({ milestoneId, onChainId, title }: EvidenceSu
       const evidenceJson = stableEvidenceJson(packet);
       const digest = await browserSha256(evidenceJson);
 
-      if (files && files.length > 0) {
-        setStep("Uploading private files...");
-        const uploadData = new FormData();
-        Array.from(files).forEach((file) => uploadData.append("files", file));
-        const uploadRes = await fetch(`/api/milestones/${milestoneId}/evidence-files`, {
-          method: "POST",
-          body: uploadData,
-        });
-        const uploadBody = await uploadRes.json().catch(() => ({}));
-        if (!uploadRes.ok) throw new Error(uploadBody.error ?? "Private file upload failed");
-      }
-
       setStep("Waiting for wallet confirmation...");
       const txHash = await execute(onChainId, digest, evidenceJson);
       if (!txHash) throw new Error("Evidence transaction failed or was rejected");
-
-      setStep("Recording evidence...");
-      const res = await fetch(`/api/milestones/${milestoneId}/evidence`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tx_hash: txHash, evidence: packet, evidence_digest: digest }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error ?? "Failed to record evidence");
 
       router.push(`/app/milestones/${milestoneId}/review`);
       router.refresh();
@@ -150,7 +128,7 @@ export function EvidenceSubmitForm({ milestoneId, onChainId, title }: EvidenceSu
           <div>
             <h2 className="font-display text-panel-title text-signal mb-1">{title}</h2>
             <p className="font-body text-table text-fog">
-              These fields are public and sent to the GenLayer contract. GenLayer validators will fetch and inspect them. Private files are uploaded separately for sponsor inspection.
+              These fields are public and sent to the GenLayer contract — validators fetch and inspect them directly. If you have supplementary proof (a screen recording, logs), host it publicly and paste the link into &quot;Raw Key File URL&quot; or reference it in your explanation below.
             </p>
           </div>
 
@@ -232,19 +210,6 @@ export function EvidenceSubmitForm({ milestoneId, onChainId, title }: EvidenceSu
               Add Criterion
             </Button>
           </div>
-        </div>
-      </PortPanel>
-
-      {/* Private files */}
-      <PortPanel label="Private Files" glow="violet">
-        <div className="flex items-center gap-3">
-          <FileUp size={18} className="text-violet-consensus" />
-          <input
-            type="file"
-            multiple
-            className="font-body text-table text-fog file:mr-4 file:rounded-btn file:border-0 file:bg-port-card file:px-3 file:py-2 file:text-fog"
-            onChange={(event) => setFiles(event.target.files)}
-          />
         </div>
       </PortPanel>
 

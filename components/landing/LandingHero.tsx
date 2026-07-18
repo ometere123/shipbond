@@ -95,7 +95,7 @@ function FloatingManifest() {
         </div>
 
         <p className="font-body text-table text-fog mb-4 leading-snug">
-          Build a usable Supabase + GenLayer frontend integration with wallet connect, deployed demo, and contract write/read flow.
+          Build a usable GenLayer frontend integration with wallet connect, deployed demo, and contract write/read flow.
         </p>
 
         {/* Stats row */}

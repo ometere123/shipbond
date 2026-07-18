@@ -2,11 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Gavel, Anchor, Shield } from "lucide-react";
 import { tryGetSessionWallet } from "@/lib/get-session-wallet";
-import { listVerdictsAsBuilder, listVerdictsAsSponsor } from "@/lib/data/reviews";
+import { listVerdictsAsBuilder, listVerdictsAsSponsor } from "@/lib/data/milestones";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PortPanel } from "@/components/ui/PortPanel";
 import { Badge } from "@/components/ui/Badge";
-import { HashPlate } from "@/components/ui/HashPlate";
 import { formatGEN } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -86,11 +85,11 @@ export default async function VerdictsPage({
           padding="sm"
         >
           <div className="flex flex-wrap gap-8">
-            <Stat label="Total"              value={rows.length}                                                          color="fog"    />
-            <Stat label="Passed"             value={rows.filter((r) => r.review.verdict === "passed").length}            color="lime"   />
-            <Stat label="Partial"            value={rows.filter((r) => r.review.verdict === "partial_pass").length}      color="amber"  />
-            <Stat label="Failed"             value={rows.filter((r) => r.review.verdict === "failed").length}            color="red"    />
-            <Stat label="Needs Human Review" value={rows.filter((r) => r.review.verdict === "needs_human_review").length} color="violet" />
+            <Stat label="Total"              value={rows.length}                                              color="fog"    />
+            <Stat label="Passed"             value={rows.filter((m) => m.verdict === "PASSED").length}         color="lime"   />
+            <Stat label="Partial"            value={rows.filter((m) => m.verdict === "PARTIAL_PASS").length}   color="amber"  />
+            <Stat label="Failed"             value={rows.filter((m) => m.verdict === "FAILED").length}         color="red"    />
+            <Stat label="Needs Human Review" value={rows.filter((m) => m.verdict === "NEEDS_HUMAN_REVIEW").length} color="violet" />
           </div>
         </PortPanel>
       )}
@@ -112,59 +111,50 @@ export default async function VerdictsPage({
         />
       ) : (
         <div className="space-y-3">
-          {rows.map(({ review, milestoneId, milestoneTitle, bondWei, rewardWei, builderWallet }) => (
+          {rows.map((milestone) => (
             <PortPanel
-              key={review.id}
+              key={milestone.milestone_id}
               padding="sm"
-              glow={review.verdict === "needs_human_review" ? "violet" : "none"}
+              glow={milestone.verdict === "NEEDS_HUMAN_REVIEW" ? "violet" : "none"}
             >
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <Badge variant={
-                      review.verdict === "passed"             ? "lime"    :
-                      review.verdict === "partial_pass"       ? "partial" :
-                      review.verdict === "failed"             ? "red"     : "steel"
+                      milestone.verdict === "PASSED"       ? "lime"    :
+                      milestone.verdict === "PARTIAL_PASS" ? "partial" :
+                      milestone.verdict === "FAILED"       ? "red"     : "steel"
                     }>
-                      {(review.verdict ?? "pending").replace(/_/g, " ")}
+                      {milestone.verdict.replace(/_/g, " ")}
                     </Badge>
-                    {review.bond_action && (
+                    {milestone.bond_action && (
                       <span className="font-mono text-meta text-steel uppercase">
-                        Bond: {review.bond_action}
+                        Bond: {milestone.bond_action}
                       </span>
                     )}
-                    {activeView === "sponsor" && (
+                    {activeView === "sponsor" && milestone.builder && (
                       <span className="font-mono text-meta text-steel">
-                        Builder: {builderWallet.slice(0, 8)}…{builderWallet.slice(-6)}
+                        Builder: {milestone.builder.slice(0, 8)}…{milestone.builder.slice(-6)}
                       </span>
                     )}
                   </div>
 
                   <Link
-                    href={`/app/port/${milestoneId}`}
+                    href={`/app/port/${milestone.milestone_id}`}
                     className="font-display text-card-title text-signal hover:text-amber-bond block mb-1"
                   >
-                    {milestoneTitle}
+                    {milestone.title}
                   </Link>
 
                   <div className="flex items-center gap-4 font-mono text-meta text-steel">
-                    <span>Reward {formatGEN(BigInt(rewardWei))} GEN</span>
-                    <span>Bond {formatGEN(BigInt(bondWei))} GEN</span>
+                    <span>Reward {formatGEN(BigInt(milestone.reward_wei))} GEN</span>
+                    <span>Bond {formatGEN(BigInt(milestone.bond_wei))} GEN</span>
                   </div>
 
-                  {review.reasoning_summary && (
+                  {milestone.reasoning && (
                     <p className="font-body text-table text-fog mt-2 max-w-2xl line-clamp-3">
-                      {review.reasoning_summary}
+                      {milestone.reasoning}
                     </p>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-2 shrink-0">
-                  {review.request_tx_hash && (
-                    <HashPlate value={review.request_tx_hash} type="tx" label="Review TX" />
-                  )}
-                  {review.result_tx_hash && (
-                    <HashPlate value={review.result_tx_hash} type="tx" label="Result TX" />
                   )}
                 </div>
               </div>

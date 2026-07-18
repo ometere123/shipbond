@@ -1,5 +1,3 @@
-import type { Json } from "@/types/supabase";
-
 export interface EvidencePacket {
   // Repo — required
   repo_url: string;
@@ -86,11 +84,3 @@ export function stableEvidenceJson(packet: EvidencePacket): string {
   });
 }
 
-export async function hashEvidenceServer(packet: EvidencePacket): Promise<string> {
-  const { createHash } = await import("crypto");
-  return createHash("sha256").update(stableEvidenceJson(packet)).digest("hex");
-}
-
-export function evidencePacketToJson(packet: EvidencePacket): Json {
-  return JSON.parse(stableEvidenceJson(packet)) as Json;
-}

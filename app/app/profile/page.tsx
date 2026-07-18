@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 import { tryGetSessionWallet } from "@/lib/get-session-wallet";
-import { getProfile } from "@/lib/data/profiles";
-import { listBuilderSubmissions } from "@/lib/data/submissions";
-import { listSponsorMilestones } from "@/lib/data/milestones";
+import { listSponsorMilestones, listBuilderMilestones } from "@/lib/data/milestones";
 import { PortPanel } from "@/components/ui/PortPanel";
 import { WalletStatusPill } from "@/components/wallet/WalletStatusPill";
 import { shortenAddress } from "@/lib/utils";
@@ -14,10 +12,9 @@ export default async function ProfilePage() {
   const session = await tryGetSessionWallet();
   if (!session) redirect("/connect");
 
-  const [profile, sponsored, submissions] = await Promise.all([
-    getProfile(session.walletAddress),
+  const [sponsored, builderBonds] = await Promise.all([
     listSponsorMilestones(session.walletAddress),
-    listBuilderSubmissions(session.walletAddress),
+    listBuilderMilestones(session.walletAddress),
   ]);
 
   return (
@@ -29,7 +26,7 @@ export default async function ProfilePage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <PortPanel padding="sm"><Stat label="Sponsored" value={sponsored.length} /></PortPanel>
-        <PortPanel padding="sm"><Stat label="Builder Bonds" value={submissions.length} /></PortPanel>
+        <PortPanel padding="sm"><Stat label="Builder Bonds" value={builderBonds.length} /></PortPanel>
         <PortPanel padding="sm"><Stat label="Admin" value={session.isAdmin ? 1 : 0} /></PortPanel>
       </div>
 
@@ -37,8 +34,6 @@ export default async function ProfilePage() {
         <div className="space-y-3">
           <WalletStatusPill />
           <Row label="Address" value={session.walletAddress} />
-          <Row label="Display" value={profile?.display_name ?? shortenAddress(session.walletAddress, 6)} />
-          <Row label="Profile ID" value={profile?.id ?? session.profileId ?? "Not created"} />
         </div>
       </PortPanel>
     </div>

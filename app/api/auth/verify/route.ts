@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyMessage, isAddress } from "viem";
 import { consumeNonce, buildSignMessage } from "@/lib/data/nonces";
 import { getOrCreateProfile } from "@/lib/data/profiles";
-import { writeAudit } from "@/lib/data/audit";
 import { getSession } from "@/lib/session";
 import { normalizeAddress } from "@/lib/utils";
 
@@ -70,11 +69,9 @@ export async function POST(req: NextRequest) {
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
   session.walletAddress = normalizedWallet;
-  if (profile) session.profileId = profile.id;
+  if (profile) session.profileId = profile.wallet;
   session.isAdmin = adminWallets.includes(normalizedWallet);
   await session.save();
-
-  writeAudit(normalizedWallet, "sign_in", undefined, req.headers.get("x-forwarded-for") ?? undefined);
 
   return NextResponse.json({
     ok: true,

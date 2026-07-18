@@ -27,20 +27,6 @@ export function RequestReviewPanel({ milestoneId, onChainId, evidenceDigest }: R
       const txHash = await execute(onChainId);
       if (!txHash) throw new Error("Review transaction failed or was rejected");
 
-      const res = await fetch(`/api/milestones/${milestoneId}/request-review`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tx_hash: txHash }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error ?? "Failed to record review request");
-
-      await fetch("/api/contract/sync-verdict", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ milestoneId }),
-      }).catch(() => undefined);
-
       router.push(`/app/port/${milestoneId}`);
       router.refresh();
     } catch (err) {

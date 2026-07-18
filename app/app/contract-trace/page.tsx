@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { Activity } from "lucide-react";
 import { listAllMilestones } from "@/lib/data/milestones";
-import { listAllSubmissions } from "@/lib/data/submissions";
-import { listReviews } from "@/lib/data/reviews";
-import { listSettlements } from "@/lib/data/settlements";
+import { SHIPBOND_CONTRACT } from "@/lib/genlayer/studionet-chain";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PortPanel } from "@/components/ui/PortPanel";
 import { HashPlate } from "@/components/ui/HashPlate";
@@ -12,15 +10,7 @@ export const metadata = { title: "Contract Trace" };
 export const dynamic = "force-dynamic";
 
 export default async function ContractTracePage() {
-  const [milestones, submissions, reviews, settlements] = await Promise.all([
-    listAllMilestones(),
-    listAllSubmissions(),
-    listReviews(),
-    listSettlements(),
-  ]);
-  const submissionByMilestone = new Map(submissions.map((item) => [item.milestone_id, item]));
-  const reviewBySubmission = new Map(reviews.map((item) => [item.submission_id, item]));
-  const settlementByMilestone = new Map(settlements.map((item) => [item.milestone_id, item]));
+  const milestones = await listAllMilestones();
 
   return (
     <div>
@@ -33,26 +23,18 @@ export default async function ContractTracePage() {
         <EmptyState icon={<Activity size={28} />} title="No contract activity" description="Create a milestone to begin the trace." />
       ) : (
         <div className="space-y-4">
-          {milestones.map((milestone) => {
-            const submission = submissionByMilestone.get(milestone.id);
-            const review = submission ? reviewBySubmission.get(submission.id) : null;
-            const settlement = settlementByMilestone.get(milestone.id);
-            return (
-              <PortPanel key={milestone.id} label={milestone.status.toUpperCase()} padding="sm">
-                <div className="space-y-3">
-                  <Link href={`/app/port/${milestone.id}`} className="font-display text-card-title text-signal hover:text-amber-bond">
-                    {milestone.title}
-                  </Link>
-                  <Trace label="Protocol" value={milestone.contract_address} type="address" />
-                  <Trace label="Terms Hash" value={milestone.terms_hash} type="hash" explorerType="none" />
-                  <Trace label="Bond TX" value={submission?.bond_tx_hash ?? null} type="tx" />
-                  <Trace label="Submit TX" value={submission?.submit_tx_hash ?? null} type="tx" />
-                  <Trace label="Review TX" value={review?.request_tx_hash ?? null} type="tx" />
-                  <Trace label="Settlement TX" value={settlement?.settle_tx_hash ?? null} type="tx" />
-                </div>
-              </PortPanel>
-            );
-          })}
+          {milestones.map((milestone) => (
+            <PortPanel key={milestone.milestone_id} label={milestone.status} padding="sm">
+              <div className="space-y-3">
+                <Link href={`/app/port/${milestone.milestone_id}`} className="font-display text-card-title text-signal hover:text-amber-bond">
+                  {milestone.title}
+                </Link>
+                <Trace label="Protocol" value={SHIPBOND_CONTRACT} type="address" />
+                <Trace label="Terms Hash" value={milestone.terms_hash} type="hash" explorerType="none" />
+                {milestone.evidence_digest && <Trace label="Evidence Digest" value={milestone.evidence_digest} type="hash" explorerType="none" />}
+              </div>
+            </PortPanel>
+          ))}
         </div>
       )}
     </div>

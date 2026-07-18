@@ -34,22 +34,43 @@ export type ContractSettlementStatus =
   | "COMPLETED";
 
 // ── Read response shapes ─────────────────────────────────────────────────────
+// Mirrors the full state dict returned by ShipBondProtocol.get_milestone().
 export interface OnChainMilestone {
-  milestone_id:  string;
-  sponsor:       string;
-  builder:       string;
-  title:         string;
-  description:   string;
-  terms_hash:    string;
-  reward_wei:    string;
-  bond_wei:      string;
-  deadline:      string;
-  status:        ContractStatus;
-  created_at:    string;
-  accepted_at:   string;
-  submitted_at:  string;
-  reviewed_at:   string;
-  settled_at:    string;
+  milestone_id:               string;
+  sponsor:                    string;
+  builder:                    string;
+  title:                      string;
+  description:                string;
+  terms_hash:                 string;
+  reward_wei:                 string;
+  reward_deposited:           string;
+  bond_wei:                   string;
+  bond_deposited:             string;
+  deadline:                   string;
+  status:                     ContractStatus;
+  evidence_digest:            string;
+  evidence_refs_json:         string;
+  submitted_at:                string;
+  review_count:                string;
+  verdict:                     ContractVerdict | "";
+  bond_action:                 ContractBondAction | "";
+  recommended_payout_bps:      string;
+  reasoning:                   string;
+  revision_required:           string;
+  human_review_reason:         string;
+  settlement_status:           ContractSettlementStatus | "";
+  verification_summary:        string;
+  fetched_repo_status:         string;
+  fetched_deployment_status:   string;
+  fetched_tx_status:           string;
+  created_at:                  string;
+  reviewed_at:                 string;
+  settled_at:                  string;
+  human_payout_bps:            string;
+  human_bond_action:           ContractBondAction | "";
+  human_settlement_reason:     string;
+  human_settlement_accepted:   boolean;
+  cancelled_at:                string;
 }
 
 export interface OnChainVerdict {
@@ -63,48 +84,6 @@ export interface OnChainVerdict {
   settlement_status:      ContractSettlementStatus;
   status:                 ContractStatus;
   reviewed_at:            string;
-}
-
-// ── DB verdict/bond_action types (lowercase, match migration 009) ────────────
-export type DbVerdict    = "passed" | "partial_pass" | "failed" | "needs_human_review";
-export type DbBondAction = "return" | "slash" | "hold";
-
-/** Maps contract UPPERCASE verdict → DB lowercase */
-export function mapContractVerdict(v: string): DbVerdict {
-  switch (v) {
-    case "PASSED":             return "passed";
-    case "PARTIAL_PASS":       return "partial_pass";
-    case "FAILED":             return "failed";
-    case "NEEDS_HUMAN_REVIEW": return "needs_human_review";
-    default:                   return "needs_human_review";
-  }
-}
-
-/** Maps contract UPPERCASE bond_action → DB lowercase */
-export function mapContractBondAction(b: string): DbBondAction {
-  switch (b) {
-    case "RETURN": return "return";
-    case "SLASH":  return "slash";
-    case "HOLD":   return "hold";
-    default:       return "hold";
-  }
-}
-
-// ── DB status mapping helpers ─────────────────────────────────────────────────
-// Contract status (UPPERCASE) → DB status (lowercase)
-const CONTRACT_TO_DB: Record<ContractStatus, string> = {
-  OPEN:                       "open",
-  ACCEPTED:                   "accepted",
-  SUBMITTED:                  "submitted",
-  REVIEWING:                  "reviewing",
-  REVIEWED:                   "reviewing",  // DB has no REVIEWED; stays reviewing until settled
-  HUMAN_SETTLEMENT_PROPOSED:  "reviewing",
-  SETTLED:                    "settled",
-  CANCELLED:                  "cancelled",
-};
-
-export function contractStatusToDb(s: ContractStatus): string {
-  return CONTRACT_TO_DB[s] ?? "open";
 }
 
 /** Returns true when the contract status means GenLayer consensus has run */

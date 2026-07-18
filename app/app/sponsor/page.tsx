@@ -32,9 +32,9 @@ export default async function ControlTowerPage() {
       <PortPanel label="Sponsor Totals" className="mb-6" padding="sm">
         <div className="flex flex-wrap gap-8">
           <Stat label="Total" value={milestones.length} />
-          <Stat label="Open" value={milestones.filter((m) => m.status === "open").length} />
-          <Stat label="Reviewing" value={milestones.filter((m) => m.status === "reviewing").length} />
-          <Stat label="Settled" value={milestones.filter((m) => m.status === "settled").length} />
+          <Stat label="Open" value={milestones.filter((m) => m.status === "OPEN").length} />
+          <Stat label="Reviewing" value={milestones.filter((m) => m.status === "REVIEWING" || m.status === "REVIEWED").length} />
+          <Stat label="Settled" value={milestones.filter((m) => m.status === "SETTLED").length} />
         </div>
       </PortPanel>
 
@@ -47,7 +47,7 @@ export default async function ControlTowerPage() {
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {milestones.map((milestone) => <BondCard key={milestone.id} milestone={milestone} />)}
+          {milestones.map((milestone) => <BondCard key={milestone.milestone_id} milestone={milestone} />)}
         </div>
       )}
     </div>

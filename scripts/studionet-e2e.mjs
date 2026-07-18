@@ -8,7 +8,7 @@ import { getAddress } from "viem";
 export async function runStudionetE2E({
   sponsorKey,
   builderKey,
-  contractAddress = "0xaD92f4d63B513394741cD5b5B650FfFfc3865D24",
+  contractAddress = "0xd89762C939b973a04d2f06781B6e5A10f5C6CF9b",
   skipReview = false,
   waitStatus = TransactionStatus.ACCEPTED,
   log = console.log,
@@ -91,10 +91,11 @@ export async function runStudionetE2E({
 
   const evidence = {
     repo_url: "https://example.com/shipbond-e2e",
-    commit_hash: sha256(`commit-${nonce}`),
+    full_commit_hash: sha256(`commit-${nonce}`).slice(0, 40),
+    raw_readme_url: "https://example.com/shipbond-e2e/raw/README.md",
     deployment_url: "https://example.com/shipbond-e2e/deployment",
     contract_address: contractAddress,
-    write_tx_hash: acceptTx,
+    accept_bond_tx_hash: acceptTx,
     read_result_summary: "Automated smoke read succeeded after builder accepted the milestone.",
     smoke_test_result: "Route and contract smoke scenario executed by ShipBond Studionet E2E runner.",
     acceptance_criteria_checklist: [
@@ -171,7 +172,7 @@ if (typeof process !== "undefined" && process.argv[1] && import.meta.url === pat
   const builderKey = process.env.SHIPBOND_BUILDER_KEY;
   const contractAddress = process.env.SHIPBOND_PROTOCOL_ADDRESS
     ?? process.env.NEXT_PUBLIC_SHIPBOND_PROTOCOL_ADDRESS
-    ?? "0xaD92f4d63B513394741cD5b5B650FfFfc3865D24";
+    ?? "0xd89762C939b973a04d2f06781B6e5A10f5C6CF9b";
 
   await runStudionetE2E({
     sponsorKey,
@@ -190,15 +191,16 @@ function sha256(value) {
 
 function stableJson(value) {
   return JSON.stringify({
+    accept_bond_tx_hash: value.accept_bond_tx_hash,
     acceptance_criteria_checklist: value.acceptance_criteria_checklist,
     builder_explanation_summary: value.builder_explanation_summary,
-    commit_hash: value.commit_hash,
     contract_address: value.contract_address,
     deployment_url: value.deployment_url,
+    full_commit_hash: value.full_commit_hash,
+    raw_readme_url: value.raw_readme_url,
     read_result_summary: value.read_result_summary,
     repo_url: value.repo_url,
     smoke_test_result: value.smoke_test_result,
-    write_tx_hash: value.write_tx_hash,
   });
 }
 

@@ -42,7 +42,7 @@ export function GenLayerJudgeSection() {
               </div>
               <div className="bg-port-panel rounded-btn p-4 border border-port-border">
                 <p className="font-body text-table text-fog">
-                  Build a usable Supabase + GenLayer frontend integration with wallet connect,
+                  Build a usable GenLayer frontend integration with wallet connect,
                   deployed demo, GitHub repo, and successful contract write/read flow.
                 </p>
                 <div className="mt-3 flex gap-2 flex-wrap">
@@ -77,7 +77,7 @@ export function GenLayerJudgeSection() {
 
           <div className="mt-5 pt-5 border-t border-port-border">
             <p className="font-body text-table text-steel text-center">
-              This verdict was not decided by the frontend, Supabase, or the sponsor.
+              This verdict was not decided by the frontend or the sponsor.
               <span className="text-violet-consensus font-medium">
                 {" "}GenLayer validator consensus is the source of truth.
               </span>

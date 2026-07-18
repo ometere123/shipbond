@@ -1,5 +1,4 @@
-// In-memory nonce store for Stage 2.
-// Stage 3 migrates this to the Supabase login_nonces table.
+// In-memory nonce store backing lib/data/nonces.ts — no database.
 
 interface NonceRecord {
   nonce: string;

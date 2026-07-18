@@ -1,102 +1,61 @@
-// SERVER-ONLY — all functions enforce ownership before reading/writing
-import { adminDb } from "@/lib/supabase-admin";
-import type { Database, MilestoneStatus } from "@/types/supabase";
+// SERVER-ONLY — reads milestone state directly from the GenLayer contract.
+// There is no database mirror: the contract is the only source of truth.
+import {
+  readMilestone,
+  readCount,
+  readSponsorMilestoneIds,
+  readBuilderMilestoneIds,
+} from "@/lib/genlayer/server-client";
+import type { OnChainMilestone } from "@/lib/genlayer/contract";
 
-type Milestone = Database["public"]["Tables"]["milestones"]["Row"];
-type MilestoneInsert = Database["public"]["Tables"]["milestones"]["Insert"];
-
-export async function createMilestone(
-  sponsorWallet: string,
-  data: Omit<MilestoneInsert, "sponsor_wallet">
-): Promise<Milestone> {
-  const { data: row, error } = await adminDb
-    .from("milestones")
-    .insert({ ...data, sponsor_wallet: sponsorWallet.toLowerCase(), status: "open" })
-    .select()
-    .single();
-  if (error || !row) throw new Error(`Failed to create milestone: ${error?.message}`);
-  return row;
+export async function getMilestone(id: string): Promise<OnChainMilestone | null> {
+  try {
+    const data = await readMilestone(id);
+    if (!data || !data.milestone_id) return null;
+    return data as unknown as OnChainMilestone;
+  } catch {
+    return null;
+  }
 }
 
-export async function getMilestone(id: string): Promise<Milestone | null> {
-  const { data } = await adminDb.from("milestones").select("*").eq("id", id).maybeSingle();
-  return data ?? null;
+export async function listSponsorMilestones(sponsorWallet: string): Promise<OnChainMilestone[]> {
+  const ids = await readSponsorMilestoneIds(sponsorWallet);
+  return hydrate(ids);
 }
 
-/** Enforces: requestor is the sponsor */
-export async function getMilestoneAsSponsor(
-  id: string,
-  sponsorWallet: string
-): Promise<Milestone> {
-  const row = await getMilestone(id);
-  if (!row) throw notFound("Milestone");
-  if (row.sponsor_wallet !== sponsorWallet.toLowerCase()) throw forbidden("Milestone");
-  return row;
+export async function listBuilderMilestones(builderWallet: string): Promise<OnChainMilestone[]> {
+  const ids = await readBuilderMilestoneIds(builderWallet);
+  return hydrate(ids);
 }
 
-export async function listOpenMilestones(): Promise<Milestone[]> {
-  const { data } = await adminDb
-    .from("milestones")
-    .select("*")
-    .in("status", ["open", "accepted"])
-    .order("created_at", { ascending: false });
-  return data ?? [];
+/** Every milestone id 1..count — ids are sequential, assigned by the contract at create time. */
+export async function listAllMilestones(): Promise<OnChainMilestone[]> {
+  const count = Number(await readCount());
+  if (!Number.isFinite(count) || count <= 0) return [];
+  const ids = Array.from({ length: count }, (_, i) => String(i + 1));
+  return hydrate(ids);
 }
 
-export async function listSponsorMilestones(sponsorWallet: string): Promise<Milestone[]> {
-  const { data } = await adminDb
-    .from("milestones")
-    .select("*")
-    .eq("sponsor_wallet", sponsorWallet.toLowerCase())
-    .order("created_at", { ascending: false });
-  return data ?? [];
+export async function listOpenMilestones(): Promise<OnChainMilestone[]> {
+  const all = await listAllMilestones();
+  return all.filter((m) => m.status === "OPEN" || m.status === "ACCEPTED");
 }
 
-export async function listAllMilestones(): Promise<Milestone[]> {
-  const { data } = await adminDb
-    .from("milestones")
-    .select("*")
-    .order("created_at", { ascending: false });
-  return data ?? [];
+/** Milestones a wallet built for, that already have a verdict recorded on-chain. */
+export async function listVerdictsAsBuilder(builderWallet: string): Promise<OnChainMilestone[]> {
+  const milestones = await listBuilderMilestones(builderWallet);
+  return milestones.filter((m) => m.verdict !== "");
 }
 
-export async function updateMilestoneStatus(
-  id: string,
-  status: MilestoneStatus,
-  extra?: Database["public"]["Tables"]["milestones"]["Update"]
-): Promise<void> {
-  const { error } = await adminDb
-    .from("milestones")
-    .update({ status, updated_at: new Date().toISOString(), ...extra })
-    .eq("id", id);
-  if (error) throw new Error(`Failed to update milestone: ${error.message}`);
+/** Milestones a wallet sponsored, that already have a verdict recorded on-chain. */
+export async function listVerdictsAsSponsor(sponsorWallet: string): Promise<OnChainMilestone[]> {
+  const milestones = await listSponsorMilestones(sponsorWallet);
+  return milestones.filter((m) => m.verdict !== "");
 }
 
-/**
- * Called after create_milestone tx is ACCEPTED on chain.
- * Stores the milestone_id returned by the contract and the funding tx hash.
- */
-export async function updateOnChainId(
-  id: string,
-  onChainId: string,
-  contractAddress: string,
-  _txHash: string,
-): Promise<void> {
-  const { error } = await adminDb
-    .from("milestones")
-    .update({
-      on_chain_id:      onChainId,
-      contract_address: contractAddress,
-      updated_at:       new Date().toISOString(),
-    })
-    .eq("id", id);
-  if (error) throw new Error(`Failed to set on_chain_id: ${error.message}`);
-}
-
-// Helpers
-function notFound(entity: string) {
-  return Object.assign(new Error(`${entity} not found`), { code: "NOT_FOUND" });
-}
-function forbidden(entity: string) {
-  return Object.assign(new Error(`Not authorized to access ${entity}`), { code: "FORBIDDEN" });
+async function hydrate(ids: string[]): Promise<OnChainMilestone[]> {
+  const results = await Promise.all(ids.map((id) => getMilestone(id)));
+  return results
+    .filter((m): m is OnChainMilestone => m !== null)
+    .sort((a, b) => Number(b.milestone_id) - Number(a.milestone_id));
 }

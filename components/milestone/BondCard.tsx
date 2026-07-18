@@ -1,28 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { formatGEN, shortenAddress } from "@/lib/utils";
+import { formatGEN, formatDeadline, shortenAddress } from "@/lib/utils";
 import { CargoCard } from "@/components/ui/PortPanel";
 import { CargoStatusBadge } from "@/components/milestone/CargoStatusBadge";
 import { ProofRail } from "@/components/milestone/ProofRail";
 import { Coins, Lock, Calendar, ArrowRight } from "lucide-react";
-import type { Database } from "@/types/supabase";
+import type { OnChainMilestone } from "@/lib/genlayer/contract";
 import { cn } from "@/lib/utils";
 
-type Milestone = Database["public"]["Tables"]["milestones"]["Row"];
-
 interface BondCardProps {
-  milestone: Milestone;
+  milestone: OnChainMilestone;
   className?: string;
 }
 
 export function BondCard({ milestone, className }: BondCardProps) {
   const reward = formatGEN(BigInt(milestone.reward_wei));
   const bond   = formatGEN(BigInt(milestone.bond_wei));
-  const isFunded = milestone.status === "open";
+  const isFunded = milestone.status === "OPEN";
 
   return (
-    <Link href={`/app/port/${milestone.id}`} className="block group" prefetch={false}>
+    <Link href={`/app/port/${milestone.milestone_id}`} className="block group" prefetch={false}>
       <CargoCard funded={isFunded} className={cn("transition-shadow duration-200 group-hover:shadow-card-lift", className)}>
         <div className="p-5 space-y-4">
 
@@ -62,15 +60,11 @@ export function BondCard({ milestone, className }: BondCardProps) {
           </div>
 
           {/* Deadline */}
-          {milestone.deadline && (
+          {Number(milestone.deadline) > 0 && (
             <div className="flex items-center gap-1.5 text-steel">
               <Calendar size={12} />
               <span className="font-mono text-meta">
-                Due {new Date(milestone.deadline).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
+                Due {formatDeadline(Number(milestone.deadline))}
               </span>
             </div>
           )}
@@ -84,11 +78,8 @@ export function BondCard({ milestone, className }: BondCardProps) {
           <div className="flex items-center justify-between">
             <span className="font-mono text-meta text-steel">
               by{" "}
-              <span className="text-fog">{shortenAddress(milestone.sponsor_wallet, 4)}</span>
+              <span className="text-fog">{shortenAddress(milestone.sponsor, 4)}</span>
             </span>
-            {milestone.contract_address && (
-              <span className="font-mono text-meta text-violet-consensus/70">IC deployed</span>
-            )}
           </div>
         </div>
       </CargoCard>

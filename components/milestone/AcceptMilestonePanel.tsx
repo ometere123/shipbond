@@ -39,14 +39,6 @@ export function AcceptMilestonePanel({ milestoneId, onChainId, title, bondWei }:
         return;
       }
 
-      const res = await fetch(`/api/milestones/${milestoneId}/accept`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tx_hash: txHash }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error ?? "Failed to record acceptance");
-
       router.push(`/app/milestones/${milestoneId}/submit`);
       router.refresh();
     } catch (err) {

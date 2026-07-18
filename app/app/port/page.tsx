@@ -24,7 +24,7 @@ export default async function ProofPortPage() {
       <div className="flex items-start justify-between mb-8 gap-4">
         <div>
           <p className="font-mono text-meta text-steel uppercase tracking-widest mb-2">
-            Proofport OS Ã‚Â· Public Board
+            Proofport OS - Public Board
           </p>
           <h1 className="font-display font-bold text-page-title text-signal">
             Proof Port
@@ -44,8 +44,8 @@ export default async function ProofPortPage() {
       {/* Stats strip */}
       <PortPanel label="Port Status" className="mb-6" padding="sm">
         <div className="flex items-center gap-8 text-table">
-          <Stat label="Open" value={milestones.filter(m => m.status === "open").length} color="amber" />
-          <Stat label="Bonded" value={milestones.filter(m => m.status === "accepted").length} color="cyan" />
+          <Stat label="Open" value={milestones.filter(m => m.status === "OPEN").length} color="amber" />
+          <Stat label="Bonded" value={milestones.filter(m => m.status === "ACCEPTED").length} color="cyan" />
           <div className="h-4 w-px bg-port-border" />
           <span className="font-mono text-meta text-steel">
             GenLayer Studionet - Chain 61999
@@ -57,7 +57,7 @@ export default async function ProofPortPage() {
       {fetchError && (
         <div className="bg-red-failed/10 border border-red-failed/30 rounded-panel p-4 mb-6">
           <p className="font-body text-table text-red-failed">
-            Failed to load milestones. Check your Supabase environment variables.
+            Failed to load milestones from the contract. Try refreshing.
           </p>
         </div>
       )}
@@ -68,7 +68,7 @@ export default async function ProofPortPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {milestones.map((m) => (
-            <BondCard key={m.id} milestone={m} />
+            <BondCard key={m.milestone_id} milestone={m} />
           ))}
         </div>
       )}

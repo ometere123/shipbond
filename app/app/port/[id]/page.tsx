@@ -1,7 +1,5 @@
 import { notFound } from "next/navigation";
 import { getMilestone } from "@/lib/data/milestones";
-import { getSubmissionByMilestone } from "@/lib/data/submissions";
-import { getReviewForSubmission } from "@/lib/data/reviews";
 import { PortPanel } from "@/components/ui/PortPanel";
 import { CargoStatusBadge } from "@/components/milestone/CargoStatusBadge";
 import { ProofRail } from "@/components/milestone/ProofRail";
@@ -9,7 +7,7 @@ import { ContractTraceStrip } from "@/components/milestone/ContractTraceStrip";
 import { Button } from "@/components/ui/Button";
 import { HashPlate } from "@/components/ui/HashPlate";
 import { SyncVerdictButton } from "@/components/milestone/SyncVerdictButton";
-import { formatGEN, shortenAddress } from "@/lib/utils";
+import { formatGEN, formatDeadline, shortenAddress } from "@/lib/utils";
 import { Coins, Lock, Calendar, FileText, ArrowLeft, Shield, Gavel } from "lucide-react";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -30,34 +28,24 @@ export const dynamic = "force-dynamic";
 
 export default async function MilestoneManifestPage({ params }: Props) {
   const { id } = await params;
-  const [milestone, submission, session] = await Promise.all([
+  const [milestone, session] = await Promise.all([
     getMilestone(id),
-    getSubmissionByMilestone(id),
     tryGetSessionWallet(),
   ]);
-
-  const review = submission ? await getReviewForSubmission(submission.id) : null;
 
   if (!milestone) notFound();
 
   const reward = formatGEN(BigInt(milestone.reward_wei));
   const bond   = formatGEN(BigInt(milestone.bond_wei));
 
-  const isSponsor = session?.walletAddress === milestone.sponsor_wallet;
-  const isBuilder = submission?.builder_wallet === session?.walletAddress;
-  const isOpen    = milestone.status === "open";
+  const wallet = session?.walletAddress?.toLowerCase();
+  const isSponsor = wallet === milestone.sponsor.toLowerCase();
+  const isBuilder = !!milestone.builder && wallet === milestone.builder.toLowerCase();
+  const hasBuilder = !!milestone.builder;
+  const isOpen = milestone.status === "OPEN";
+  const hasVerdict = milestone.verdict !== "";
 
   const txEntries: { label: string; hash: string; type: "tx" | "address" | "hash" | "contract" }[] = [];
-  if (milestone.contract_address) {
-    txEntries.push({ label: "Contract", hash: milestone.contract_address, type: "address" });
-  }
-
-  if (submission?.bond_tx_hash) {
-    txEntries.push({ label: "Bond TX", hash: submission.bond_tx_hash, type: "tx" });
-  }
-  if (submission?.submit_tx_hash) {
-    txEntries.push({ label: "Submit TX", hash: submission.submit_tx_hash, type: "tx" });
-  }
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -90,7 +78,7 @@ export default async function MilestoneManifestPage({ params }: Props) {
         </h1>
         <div className="flex items-center gap-2 text-steel">
           <span className="font-mono text-meta">Sponsor:</span>
-          <span className="font-mono text-meta text-fog">{shortenAddress(milestone.sponsor_wallet, 6)}</span>
+          <span className="font-mono text-meta text-fog">{shortenAddress(milestone.sponsor, 6)}</span>
         </div>
       </div>
 
@@ -121,11 +109,8 @@ export default async function MilestoneManifestPage({ params }: Props) {
         <StatCard
           icon={<Calendar size={16} className="text-violet-consensus" />}
           label="Deadline"
-          value={milestone.deadline
-            ? new Date(milestone.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-            : "No deadline"
-          }
-          sub={milestone.deadline ? "UTC" : "Open-ended"}
+          value={Number(milestone.deadline) > 0 ? formatDeadline(Number(milestone.deadline)) : "No deadline"}
+          sub={Number(milestone.deadline) > 0 ? "UTC" : "Open-ended"}
           color="violet"
         />
       </div>
@@ -154,19 +139,17 @@ export default async function MilestoneManifestPage({ params }: Props) {
       )}
 
       {/* Submission status (builder view) */}
-      {submission && (
-        <PortPanel label="Your Submission" glow="cyan" className="mb-4">
+      {hasBuilder && (
+        <PortPanel label="Builder" glow="cyan" className="mb-4">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-meta text-steel uppercase tracking-wider">Status</span>
-              <span className="font-mono text-meta text-cyan-evidence uppercase">
-                {submission.status.replace(/_/g, " ")}
-              </span>
+              <span className="font-mono text-meta text-steel uppercase tracking-wider">Wallet</span>
+              <span className="font-mono text-meta text-cyan-evidence">{shortenAddress(milestone.builder, 6)}</span>
             </div>
-            {submission.evidence_digest && (
+            {milestone.evidence_digest && (
               <div className="flex items-center justify-between">
                 <span className="font-mono text-meta text-steel uppercase tracking-wider">Evidence Digest</span>
-                <HashPlate value={submission.evidence_digest} type="hash" explorerType="none" />
+                <HashPlate value={milestone.evidence_digest} type="hash" explorerType="none" />
               </div>
             )}
           </div>
@@ -176,8 +159,8 @@ export default async function MilestoneManifestPage({ params }: Props) {
       {/* Action buttons */}
       <div className="flex flex-wrap gap-3">
         {/* Open milestone — builder can accept */}
-        {isOpen && !submission && session && !isSponsor && (
-          <Link href={`/app/milestones/${milestone.id}/accept`}>
+        {isOpen && !hasBuilder && session && !isSponsor && (
+          <Link href={`/app/milestones/${milestone.milestone_id}/accept`}>
             <Button variant="primary" size="lg">
               <Lock size={16} />
               Lock Bond &amp; Accept
@@ -186,8 +169,8 @@ export default async function MilestoneManifestPage({ params }: Props) {
         )}
 
         {/* Builder has accepted — submit evidence */}
-        {isBuilder && milestone.status === "accepted" && (
-          <Link href={`/app/milestones/${milestone.id}/submit`}>
+        {isBuilder && milestone.status === "ACCEPTED" && (
+          <Link href={`/app/milestones/${milestone.milestone_id}/submit`}>
             <Button variant="genlayer" size="lg">
               <FileText size={16} />
               Submit Evidence
@@ -196,8 +179,8 @@ export default async function MilestoneManifestPage({ params }: Props) {
         )}
 
         {/* Sponsor requests review after builder submits */}
-        {isSponsor && milestone.status === "submitted" && (
-          <Link href={`/app/milestones/${milestone.id}/review`}>
+        {isSponsor && milestone.status === "SUBMITTED" && (
+          <Link href={`/app/milestones/${milestone.milestone_id}/review`}>
             <Button variant="genlayer" size="lg">
               <Gavel size={16} />
               Request GenLayer Review
@@ -206,8 +189,8 @@ export default async function MilestoneManifestPage({ params }: Props) {
         )}
 
         {/* Sponsor can view evidence when submitted */}
-        {isSponsor && submission && (
-          <Link href={`/app/sponsor/milestones/${milestone.id}/submissions`}>
+        {isSponsor && hasBuilder && (
+          <Link href={`/app/sponsor/milestones/${milestone.milestone_id}/submissions`}>
             <Button variant="secondary" size="lg">
               <FileText size={16} />
               Review Submission
@@ -215,19 +198,19 @@ export default async function MilestoneManifestPage({ params }: Props) {
           </Link>
         )}
 
-        {(isSponsor || isBuilder) && milestone.status === "reviewing" && (
+        {(isSponsor || isBuilder) && (milestone.status === "REVIEWING" || milestone.status === "REVIEWED") && (
           <>
-            <SyncVerdictButton milestoneId={milestone.id} />
-            {review?.verdict && submission && (
-              <Link href={`/app/consensus/${submission.id}`}>
+            <SyncVerdictButton milestoneId={milestone.milestone_id} />
+            {hasVerdict && (
+              <Link href={`/app/consensus/${milestone.milestone_id}`}>
                 <Button variant="genlayer" size="lg">
                   <Gavel size={16} />
                   Consensus Chamber
                 </Button>
               </Link>
             )}
-            {review?.verdict && (
-              <Link href={`/app/milestones/${milestone.id}/settle`}>
+            {hasVerdict && (
+              <Link href={`/app/milestones/${milestone.milestone_id}/settle`}>
                 <Button variant="primary" size="lg">
                   Settle
                 </Button>
@@ -236,7 +219,7 @@ export default async function MilestoneManifestPage({ params }: Props) {
           </>
         )}
 
-        {(isSponsor || isBuilder) && milestone.status === "settled" && (
+        {(isSponsor || isBuilder) && milestone.status === "SETTLED" && (
           <Link href="/app/verdicts">
             <Button variant="secondary" size="lg">
               View Verdict Registry

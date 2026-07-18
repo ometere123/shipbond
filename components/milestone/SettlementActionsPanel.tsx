@@ -11,19 +11,18 @@ import {
   useSettleHumanAgreement,
 } from "@/hooks/useContractActions";
 import { AlertTriangle, CheckCircle, Handshake, Send } from "lucide-react";
-import type { Database } from "@/types/supabase";
-
-type Review = Database["public"]["Tables"]["reviews"]["Row"];
+import type { ContractVerdict, ContractBondAction } from "@/lib/genlayer/contract";
 
 interface SettlementActionsPanelProps {
   milestoneId: string;
   onChainId: string;
-  review: Review | null;
+  verdict: ContractVerdict | "";
+  bondAction: ContractBondAction | "";
   isSponsor: boolean;
   isBuilder: boolean;
 }
 
-export function SettlementActionsPanel({ milestoneId, onChainId, review, isSponsor, isBuilder }: SettlementActionsPanelProps) {
+export function SettlementActionsPanel({ milestoneId, onChainId, verdict, bondAction, isSponsor, isBuilder }: SettlementActionsPanelProps) {
   const router = useRouter();
   const settle = useSettle();
   const proposeHuman = useProposeHumanSettlement();
@@ -35,26 +34,15 @@ export function SettlementActionsPanel({ milestoneId, onChainId, review, isSpons
   const [humanBondAction, setHumanBondAction] = useState<"RETURN" | "SLASH">("RETURN");
   const [humanReason, setHumanReason] = useState("");
 
-  const needsHuman = review?.verdict === "needs_human_review";
-  const autoReady = review?.verdict && !needsHuman;
+  const needsHuman = verdict === "NEEDS_HUMAN_REVIEW";
+  const autoReady = verdict !== "" && !needsHuman;
 
-  async function recordSettlement(txHash: string, human = false) {
-    const res = await fetch(`/api/milestones/${milestoneId}/settle`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tx_hash: txHash, human }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error ?? "Failed to record settlement");
-  }
-
-  async function run(label: string, action: () => Promise<string | null>, human = false) {
+  async function run(label: string, action: () => Promise<string | null>) {
     setBusy(label);
     setError(null);
     try {
       const txHash = await action();
       if (!txHash) throw new Error("Wallet transaction failed or was rejected");
-      if (label.includes("Settle")) await recordSettlement(txHash, human);
       router.refresh();
       if (label.includes("Settle")) router.push(`/app/port/${milestoneId}`);
     } catch (err) {
@@ -65,11 +53,11 @@ export function SettlementActionsPanel({ milestoneId, onChainId, review, isSpons
   }
 
   return (
-    <PortPanel label="Settlement Console" glow={needsHuman ? "amber" : "lime" as any} className="max-w-2xl">
+    <PortPanel label="Settlement Console" glow={needsHuman ? "amber" : "cyan"} className="max-w-2xl">
       <div className="space-y-5">
         <p className="font-body text-table text-fog">
-          Verdict: <span className="font-mono text-signal uppercase">{review?.verdict?.replace(/_/g, " ") ?? "Not synced"}</span>.
-          Bond action: <span className="font-mono text-signal uppercase">{review?.bond_action ?? "pending"}</span>.
+          Verdict: <span className="font-mono text-signal uppercase">{verdict ? verdict.replace(/_/g, " ") : "Not yet reviewed"}</span>.
+          Bond action: <span className="font-mono text-signal uppercase">{bondAction || "pending"}</span>.
         </p>
 
         {autoReady && (
@@ -126,7 +114,7 @@ export function SettlementActionsPanel({ milestoneId, onChainId, review, isSpons
           <Button
             variant="secondary"
             loading={busy === "Accept Human Settlement"}
-            onClick={() => run("Accept Human Settlement", () => acceptHuman.execute(onChainId), true)}
+            onClick={() => run("Accept Human Settlement", () => acceptHuman.execute(onChainId))}
           >
             <Handshake size={15} />
             Accept Human Agreement
@@ -137,7 +125,7 @@ export function SettlementActionsPanel({ milestoneId, onChainId, review, isSpons
           <Button
             variant="primary"
             loading={busy === "Settle Human Agreement"}
-            onClick={() => run("Settle Human Agreement", () => settleHuman.execute(onChainId), true)}
+            onClick={() => run("Settle Human Agreement", () => settleHuman.execute(onChainId))}
           >
             Settle Human Agreement
           </Button>

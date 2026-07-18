@@ -1,23 +1,20 @@
-﻿"use client";
+"use client";
 
 /**
- * CreateMilestoneForm Ã¢â‚¬â€ 4-step flow:
+ * CreateMilestoneForm - 3-step flow, contract-only (no backend database):
  *
- *  1. POST /api/milestones/create
- *     Server creates DB record, embeds local DB ID in terms_hash, returns
- *     { id, terms_hash, reward_wei, bond_wei, deadline_ts }.
+ *  1. Client computes terms_hash (SHA-256 of title/description/reward/bond/
+ *     deadline + a fresh client_nonce + sponsor wallet + timestamp).
  *
- *  2. useCreateMilestone hook
- *     Signs and sends create_milestone(title, description, terms_hash, bond_wei, deadline)
- *     with reward_wei attached as msg.value. Wallet prompt (MetaMask/Rabby).
- *     Waits for ACCEPTED status before returning.
+ *  2. useCreateMilestone hook sends create_milestone(...) with reward_wei
+ *     attached as msg.value. Wallet prompt (MetaMask/Rabby). Waits for
+ *     ACCEPTED status before returning.
  *
- *  3. POST /api/milestones/[id]/set-on-chain-id with { tx_hash }
- *     Server resolves the real on-chain milestone_id by scanning
- *     get_sponsor_milestone_ids and matching terms_hash. Verifies against
- *     the contract before storing. No placeholder IDs.
+ *  3. POST /api/contract/resolve-milestone-id - a pure contract read that
+ *     scans get_sponsor_milestone_ids and matches terms_hash to find the
+ *     real numeric milestone_id assigned by the contract.
  *
- *  4. Redirect to /app/port/[id]
+ *  4. Redirect to /app/port/[milestoneId]
  */
 
 import { useState } from "react";
@@ -27,8 +24,17 @@ import { Button } from "@/components/ui/Button";
 import { PortPanel } from "@/components/ui/PortPanel";
 import { cn } from "@/lib/utils";
 import { useCreateMilestone } from "@/hooks/useContractActions";
+import { hashTermsBrowser } from "@/lib/terms-hash";
 import { AlertTriangle, CheckCircle, Coins, Lock, FileText, Calendar, Loader2, ExternalLink } from "lucide-react";
 import { buildProtocolTxUrl } from "@/lib/utils";
+
+function sanitizeText(text: string): string {
+  return text
+    .replace(/ignore\s+(all\s+)?(previous|prior|above)\s+instructions?/gi, "[removed]")
+    .replace(/system\s*prompt/gi, "[removed]")
+    .replace(/you\s+are\s+(now\s+)?a/gi, "[removed]")
+    .trim();
+}
 
 interface FormState {
   title:       string;
@@ -46,7 +52,7 @@ const INITIAL: FormState = {
   deadline:    "",
 };
 
-type Step = "idle" | "saving" | "wallet" | "linking" | "done";
+type Step = "idle" | "hashing" | "wallet" | "resolving" | "done";
 
 export function CreateMilestoneForm() {
   const router = useRouter();
@@ -94,83 +100,75 @@ export function CreateMilestoneForm() {
     setServerError(null);
 
     try {
-      // Ã¢â€â‚¬Ã¢â€â‚¬ Step 1: Create DB record, get terms_hash from server Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-      setStep("saving");
-      const res = await fetch("/api/milestones/create", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title:       form.title.trim(),
-          description: form.description.trim(),
-          reward_gen:  form.reward_gen,
-          bond_gen:    form.bond_gen,
-          deadline:    form.deadline || null,
-        }),
+      // ── Step 1: compute terms_hash client-side ─────────────────────────
+      setStep("hashing");
+
+      const safeTitle = sanitizeText(form.title.trim());
+      const safeDesc  = sanitizeText(form.description.trim());
+
+      // GEN → wei (avoid floating-point drift)
+      const rewardWei = (BigInt(Math.round(Number(form.reward_gen) * 1e9)) * BigInt(1e9)).toString();
+      const bondWei   = (BigInt(Math.round(Number(form.bond_gen)   * 1e9)) * BigInt(1e9)).toString();
+      const deadlineTs = form.deadline
+        ? Math.floor(new Date(form.deadline).getTime() / 1000).toString()
+        : "0";
+
+      const termsHash = await hashTermsBrowser({
+        title:          safeTitle,
+        description:    safeDesc,
+        reward_wei:     rewardWei,
+        bond_wei:       bondWei,
+        deadline:       form.deadline ? new Date(form.deadline).toISOString() : null,
+        client_nonce:   crypto.randomUUID(),
+        sponsor_wallet: address,
+        created_at_iso: new Date().toISOString(),
       });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setServerError(data.error ?? "Failed to create milestone record");
-        return;
-      }
-
-      const {
-        id:          dbId,
-        terms_hash:  termsHash,
-        reward_wei:  rewardWei,
-        bond_wei:    bondWei,
-        deadline_ts: deadlineTs,
-      } = data as {
-        id:          string;
-        terms_hash:  string;
-        reward_wei:  string;
-        bond_wei:    string;
-        deadline_ts: string;
-      };
 
       setConfirmedHash(termsHash);
 
-      // Ã¢â€â‚¬Ã¢â€â‚¬ Step 2: Publish to GenLayer Ã¢â‚¬â€ wallet signs Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+      // ── Step 2: publish to GenLayer — wallet signs ─────────────────────
       setStep("wallet");
-      const txHash = await createOnChain(
-        form.title.trim(),
-        form.description.trim(),
+      const hash = await createOnChain(
+        safeTitle,
+        safeDesc,
         termsHash,
         BigInt(bondWei),
         BigInt(deadlineTs),
         BigInt(rewardWei),
       );
 
-      if (txHash) setTxHash(txHash);
-      if (!txHash) {
+      if (!hash) {
+        setServerError("Wallet transaction was rejected or failed. Nothing was created — try again.");
+        return;
+      }
+      setTxHash(hash);
+
+      // ── Step 3: resolve the real on-chain milestone_id ─────────────────
+      setStep("resolving");
+      const resolveRes = await fetch("/api/contract/resolve-milestone-id", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sponsorWallet: address,
+          termsHash,
+          title:      safeTitle,
+          rewardWei,
+          bondWei,
+        }),
+      });
+      const resolveData = await resolveRes.json().catch(() => ({}));
+
+      if (!resolveRes.ok || !resolveData.milestone_id) {
         setServerError(
-          "Wallet transaction was rejected or failed. " +
-          "Your DB record is saved Ã¢â‚¬â€ you can retry publishing from the milestone page.",
+          "Milestone was created on chain, but the app could not resolve its ID yet. " +
+          "Check your Port page shortly — it will appear once indexed.",
         );
-        router.push(`/app/port/${dbId}`);
+        router.push("/app/port");
         return;
       }
 
-      // Ã¢â€â‚¬Ã¢â€â‚¬ Step 3: Resolve real on_chain_id server-side Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-      setStep("linking");
-      const linkRes = await fetch(`/api/milestones/${dbId}/set-on-chain-id`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ tx_hash: txHash }),
-      });
-
-      if (!linkRes.ok) {
-        const linkData = await linkRes.json().catch(() => ({}));
-        // Non-fatal: milestone exists on chain, ID resolution can be retried
-        console.warn("[CreateMilestoneForm] set-on-chain-id failed:", linkData);
-        setServerError(
-          "Milestone created on chain, but ID linking timed out. " +
-          "It will resolve automatically Ã¢â‚¬â€ proceed to your milestone.",
-        );
-      }
-
       setStep("done");
-      router.push(`/app/port/${dbId}`);
+      router.push(`/app/port/${resolveData.milestone_id}`);
     } catch (err: unknown) {
       setServerError(err instanceof Error ? err.message : "Unexpected error");
     } finally {
@@ -180,11 +178,11 @@ export function CreateMilestoneForm() {
   }
 
   const stepLabel: Record<Step, string | null> = {
-    idle:    null,
-    saving:  "Saving to databaseÃ¢â‚¬Â¦",
-    wallet:  "Waiting for wallet confirmationÃ¢â‚¬Â¦",
-    linking: "Linking on-chain IDÃ¢â‚¬Â¦",
-    done:    "Done Ã¢â‚¬â€ redirectingÃ¢â‚¬Â¦",
+    idle:      null,
+    hashing:   "Preparing terms...",
+    wallet:    "Waiting for wallet confirmation...",
+    resolving: "Resolving on-chain ID...",
+    done:      "Done - redirecting...",
   };
 
   return (
@@ -284,7 +282,7 @@ export function CreateMilestoneForm() {
         </div>
       </PortPanel>
 
-      {/* Confirmed terms hash (set by server after DB record created) */}
+      {/* Confirmed terms hash */}
       {confirmedHash && (
         <div className="flex items-center gap-2 px-4 py-3 bg-violet-consensus/8 border border-violet-consensus/25 rounded-btn">
           <CheckCircle size={14} className="text-lime-passed shrink-0" />
@@ -304,7 +302,7 @@ export function CreateMilestoneForm() {
             rel="noopener noreferrer"
             className="hash-text text-lime-passed text-meta truncate hover:text-signal flex items-center gap-1"
           >
-            {txHash.slice(0, 10)}Ã¢â‚¬Â¦{txHash.slice(-8)}
+            {txHash.slice(0, 10)}...{txHash.slice(-8)}
             <ExternalLink size={11} />
           </a>
         </div>
@@ -324,7 +322,7 @@ export function CreateMilestoneForm() {
           {step === "wallet" ? (
             <span className="flex items-center gap-2">
               <Loader2 size={14} className="animate-spin" />
-              Waiting for walletÃ¢â‚¬Â¦
+              Waiting for wallet...
             </span>
           ) : "Create Milestone"}
         </Button>
@@ -338,7 +336,7 @@ export function CreateMilestoneForm() {
   );
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Helpers ───────────────────────────────────────────────────────────────
 
 function inputClass(hasError: boolean) {
   return cn(

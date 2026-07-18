@@ -89,6 +89,16 @@ export async function readIsSettled(milestoneId: string): Promise<boolean> {
   return result as boolean;
 }
 
+export async function readIsSponsorTimeoutClaimable(milestoneId: string): Promise<boolean> {
+  const client = getClient();
+  const result = await client.readContract({
+    address:      SHIPBOND_CONTRACT,
+    functionName: "is_sponsor_timeout_claimable",
+    args:         [milestoneId],
+  });
+  return result as boolean;
+}
+
 export async function readCount(): Promise<string> {
   const client = getClient();
   const result = await client.readContract({

@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
-import { CheckCircle, Circle, Clock, Zap } from "lucide-react";
-import type { MilestoneStatus } from "@/types/supabase";
+import { CheckCircle, Circle, Zap } from "lucide-react";
+import type { ContractStatus } from "@/lib/genlayer/contract";
 
 interface RailStep {
   id: string;
@@ -8,9 +8,12 @@ interface RailStep {
   status: "completed" | "active" | "pending";
 }
 
-function milestoneToSteps(status: MilestoneStatus): RailStep[] {
-  const ORDER: MilestoneStatus[] = ["open", "accepted", "submitted", "reviewing", "settled"];
-  const currentIdx = ORDER.indexOf(status);
+const ORDER: ContractStatus[] = ["OPEN", "ACCEPTED", "SUBMITTED", "REVIEWING", "SETTLED"];
+
+function milestoneToSteps(status: ContractStatus): RailStep[] {
+  // REVIEWED / HUMAN_SETTLEMENT_PROPOSED both fall under the "Consensus" stage.
+  const normalized = status === "REVIEWED" || status === "HUMAN_SETTLEMENT_PROPOSED" ? "REVIEWING" : status;
+  const currentIdx = ORDER.indexOf(normalized);
 
   return [
     { id: "funded",    label: "Funded" },
@@ -21,7 +24,7 @@ function milestoneToSteps(status: MilestoneStatus): RailStep[] {
   ].map((step, i) => ({
     ...step,
     status:
-      status === "cancelled"
+      status === "CANCELLED"
         ? "pending"
         : i < currentIdx
         ? "completed"
@@ -32,7 +35,7 @@ function milestoneToSteps(status: MilestoneStatus): RailStep[] {
 }
 
 interface ProofRailProps {
-  status: MilestoneStatus;
+  status: ContractStatus;
   className?: string;
   compact?: boolean;
 }
