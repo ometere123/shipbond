@@ -15,7 +15,7 @@ A sponsor posts a milestone and locks the reward. A builder accepts by locking a
 
 Connect your wallet, post a milestone with a reward, and a builder locks a bond to accept it. Once the builder submits public evidence (repo, deployment, commit hash), GenLayer's validator network independently fetches every URL, judges it against the milestone terms, and reaches AI consensus on a verdict. The result is written to contract state - not to a server, not to a database.
 
-- **Evidence verification, not self-report** - validators fetch `raw_readme_url` and `deployment_url` themselves; a `PASSED` verdict means validators confirmed real, relevant content, not that the builder claimed it
+- **Evidence verification, not self-report** - the contract derives the raw GitHub README URL from `repo_url` + `full_commit_hash`, recomputes the canonical evidence digest, and validators fetch the derived README plus `deployment_url` themselves; a `PASSED` verdict means validators confirmed real, relevant content, not that the builder claimed it
 - **AI consensus review** - every validator independently re-fetches and re-judges; `verdict`, `bond_action`, `settlement_status`, and `recommended_payout_bps` - the exact percentage that controls a partial payout - must all agree before any result is stored
 - **Full lifecycle on-chain** - create, accept, submit, review, settle - every step is a contract transaction
 - **No off-chain storage** - no database, no private file store. All state lives in the GenLayer contract; the frontend is a pure client for it
@@ -36,7 +36,7 @@ Connect your wallet, post a milestone with a reward, and a builder locks a bond 
 **For builders**
 
 1. Accept an open milestone by locking the exact bond amount
-2. Submit a public evidence packet - repo URL, pinned commit hash, raw README URL, deployment URL, and a written explanation
+2. Submit a public evidence packet - repo URL, pinned commit hash, deployment URL, optional key-file path, and a written explanation
 3. Wait for GenLayer consensus review
 4. If the sponsor requests review and the verdict is auto-settleable, anyone can call `settle` to release funds
 5. If the sponsor goes silent, call `claim_sponsor_timeout` after the response window to recover the reward and bond yourself
@@ -45,7 +45,7 @@ Connect your wallet, post a milestone with a reward, and a builder locks a bond 
 
 ## Evidence Verification
 
-Builders supply public URLs - a raw GitHub README pinned to a commit hash, a live deployment URL, and optionally a StudioNet transaction/contract reference. When `request_review` is called, every GenLayer validator independently fetches each URL with `gl.nondet.web.request`, inspects the actual content, and runs LLM judgment against the milestone terms. Validators must reach equivalent structured output before a verdict is written to state.
+Builders supply public refs - a canonical GitHub repo URL, a full commit hash, a live deployment URL, and optionally a StudioNet transaction/contract reference. The contract derives the raw GitHub README URL from the claimed repo and exact commit, rejects mismatched raw URLs, and recomputes the evidence digest before accepting the packet. When `request_review` is called, every GenLayer validator independently fetches the derived URL and deployment with `gl.nondet.web.request`, inspects the actual content, and runs LLM judgment against the milestone terms. Validators must reach equivalent structured output before a verdict is written to state.
 
 Outcomes stored on-chain:
 
@@ -56,7 +56,7 @@ Outcomes stored on-chain:
 | `FAILED` | Repo returned 404, deployment is a placeholder, or evidence contradicts the terms |
 | `NEEDS_HUMAN_REVIEW` | Fetches failed for network/access reasons the validators could not attribute to fake evidence |
 
-Use commit-pinned raw URLs (`raw.githubusercontent.com/.../<commit>/README.md`, not a branch name) so content is byte-identical across every validator's independent fetch.
+Use canonical repo URLs (`https://github.com/{owner}/{repo}`) and full 40-character commit hashes. Branch names such as `main` are not accepted as evidence bindings.
 
 ---
 
@@ -100,7 +100,7 @@ All other write methods are deterministic contract logic - fund custody, state t
 | Chain ID | `61999` |
 | RPC | `https://studio.genlayer.com/api` |
 | Explorer | `https://explorer-studio.genlayer.com` |
-| Contract | [`0xd89762C939b973a04d2f06781B6e5A10f5C6CF9b`](https://explorer-studio.genlayer.com/address/0xd89762C939b973a04d2f06781B6e5A10f5C6CF9b) |
+| Contract | [`0xd840A072C6B491698E53e469f214f6c6D2750Dc4`](https://explorer-studio.genlayer.com/address/0xd840A072C6B491698E53e469f214f6c6D2750Dc4) |
 | Source | `contracts/ShipBondProtocol.py` |
 
 ### Write methods
@@ -141,7 +141,21 @@ bond_action: RETURN
 recommended_payout_bps: 10000
 settlement_status: COMPLETED
 status: SETTLED
+fetched_repo_status: ok
+fetched_deployment_status: ok
+fetched_tx_status: ok
 ```
+
+Latest transaction trail:
+
+| Step | Transaction |
+| --- | --- |
+| Deploy contract | `0x12451f4fa022270302684ad38a5359f941047b6dece5288f5b9645d16506d77a` |
+| Create milestone | `0x94a91928d73b529396a76e7eeb9e20d146b7a7a4e5ec9fb6610b5d21587e8af0` |
+| Accept milestone | `0xf46edbdbe2c0b566e5deb4bf31e094f7b91ee7d8599b9dcb5ff01adba67fafad` |
+| Submit evidence | `0xf2f84288c2cb71d0f86b375316bbe1d07c93cf40d247a08202bbb7fbf1fe21ab` |
+| Request review | `0x1f79d3fc10e48a665369af98d2dfbdf4de205a2979839c03874bfdc789c0b9c3` |
+| Settle | `0x0198cea22cec3cb6adc78981686b01d151af85ee13e3cdaece7eacb6b9f016e2` |
 
 Reasoning returned by GenLayer consensus:
 > README fetched OK from pinned commit: describes ShipBond milestone bond protocol on GenLayer Studionet with sponsor/builder roles, GEN locking, AI validator consensus, and wallet connect flow. Deployment at shipbond.vercel.app fetched OK: real Next.js app - not a placeholder. All milestone deliverables are credibly evidenced by fetched content.
@@ -218,11 +232,19 @@ npm run build
 node scripts/studionet-e2e.mjs
 ```
 
-The E2E script requires funded Studionet test wallets:
+The E2E script requires funded Studionet test wallets. You can pass raw private
+keys through environment variables:
 
 ```env
 SHIPBOND_SPONSOR_KEY=0x...
 SHIPBOND_BUILDER_KEY=0x...
+```
+
+Or use unlocked GenLayer CLI account names:
+
+```env
+SHIPBOND_SPONSOR_ACCOUNT=party_a
+SHIPBOND_BUILDER_ACCOUNT=party_b
 ```
 
 ---
@@ -235,7 +257,9 @@ NEXT_PUBLIC_CHAIN_ID=61999
 NEXT_PUBLIC_GENLAYER_NETWORK=studionet
 NEXT_PUBLIC_GENLAYER_EXPLORER=https://explorer-studio.genlayer.com
 NEXT_PUBLIC_FAUCET_URL=https://studio.genlayer.com
-NEXT_PUBLIC_SHIPBOND_CONTRACT_ADDRESS=0xd89762C939b973a04d2f06781B6e5A10f5C6CF9b
+NEXT_PUBLIC_SHIPBOND_PROTOCOL_ADDRESS=0xd840A072C6B491698E53e469f214f6c6D2750Dc4
+NEXT_PUBLIC_SHIPBOND_CONTRACT_ADDRESS=0xd840A072C6B491698E53e469f214f6c6D2750Dc4
+SHIPBOND_PROTOCOL_ADDRESS=0xd840A072C6B491698E53e469f214f6c6D2750Dc4
 
 SESSION_SECRET=your_32_plus_character_secret
 SESSION_COOKIE_NAME=__shipbond_session
@@ -251,6 +275,7 @@ SHIPBOND_ADMIN_WALLETS=comma_separated_admin_wallets
 - `SESSION_SECRET` is server-only, never prefixed with `NEXT_PUBLIC_`
 - The contract has no method that lets a sponsor manually mark a verdict
 - Prompt injection attempts in evidence fields are rejected before they reach the contract
+- GitHub evidence is structurally bound to the claimed repository and exact commit before validator review can move funds
 - Human settlement requires both sponsor proposal and builder acceptance
 - All validation failures raise `gl.vm.UserError`, a clean catchable rejection - not a bare `Exception`, which GenVM treats as an unrecoverable crash
 
@@ -260,7 +285,7 @@ SHIPBOND_ADMIN_WALLETS=comma_separated_admin_wallets
 
 - `terms_hash` includes a client-generated nonce, sponsor wallet, and timestamp so it's globally unique, letting the app resolve the real on-chain `milestone_id` by matching `get_sponsor_milestone_ids` after `create_milestone` confirms.
 - GenLayer review is intentionally non-deterministic. Consensus accepts equivalent structured verdicts - the wording of `reasoning` may differ between validators, but `verdict`, `bond_action`, `settlement_status`, and `recommended_payout_bps` must match exactly.
-- `raw.githubusercontent.com` URLs are used for evidence because they return stable plain text with no JavaScript rendering, making them reliably fetchable by every validator in a consensus round.
+- `raw.githubusercontent.com` URLs are derived by the contract because they return stable plain text with no JavaScript rendering, making them reliably fetchable by every validator in a consensus round.
 - The pinned GenVM runner's web-fetch `Response` object exposes `.status`, not `.status_code` - verify runtime object shapes empirically rather than trusting docs alone when the pinned runner is older than the latest.
 
 ---
