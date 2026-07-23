@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { PortPanel } from "@/components/ui/PortPanel";
 import {
   normalizeEvidencePacket,
+  stableEvidenceDigestJson,
   stableEvidenceJson,
   type EvidencePacket,
 } from "@/lib/evidence-packet";
@@ -21,8 +22,10 @@ interface EvidenceSubmitFormProps {
 const EMPTY: EvidencePacket = {
   repo_url: "",
   full_commit_hash: "",
+  readme_path: "README.md",
   raw_readme_url: "",
   repo_tree_url: "",
+  key_file_path: "",
   raw_key_file_url: "",
   deployment_url: "",
   contract_address: "",
@@ -63,7 +66,7 @@ export function EvidenceSubmitForm({ milestoneId, onChainId, title }: EvidenceSu
     if (rawReadme) {
       setForm((f) => ({
         ...f,
-        raw_readme_url: f.raw_readme_url || rawReadme,
+        raw_readme_url: rawReadme,
         repo_tree_url: f.repo_tree_url || treeUrl,
       }));
     }
@@ -104,7 +107,7 @@ export function EvidenceSubmitForm({ milestoneId, onChainId, title }: EvidenceSu
     try {
       const packet = normalizeEvidencePacket(form);
       const evidenceJson = stableEvidenceJson(packet);
-      const digest = await browserSha256(evidenceJson);
+      const digest = await browserSha256(stableEvidenceDigestJson(packet));
 
       setStep("Waiting for wallet confirmation...");
       const txHash = await execute(onChainId, digest, evidenceJson);
@@ -141,15 +144,15 @@ export function EvidenceSubmitForm({ milestoneId, onChainId, title }: EvidenceSu
           </Field>
 
           <Field label="Raw README URL" hint="Auto-derived from repo + commit hash. GenLayer fetches this directly — stable plain text.">
-            <input className={inputClass} value={form.raw_readme_url} onChange={setField("raw_readme_url")} placeholder="https://raw.githubusercontent.com/owner/repo/HASH/README.md" />
+            <input className={inputClass} value={form.raw_readme_url} readOnly placeholder="https://raw.githubusercontent.com/owner/repo/HASH/README.md" />
           </Field>
 
           <Field label="Pinned Repo Tree URL" hint="Optional — GitHub tree view pinned to commit">
             <input className={inputClass} value={form.repo_tree_url} onChange={setField("repo_tree_url")} placeholder="https://github.com/owner/repo/tree/HASH" />
           </Field>
 
-          <Field label="Raw Key File URL" hint="Optional — raw URL to your main contract, package.json, or key source file">
-            <input className={inputClass} value={form.raw_key_file_url} onChange={setField("raw_key_file_url")} placeholder="https://raw.githubusercontent.com/owner/repo/HASH/contracts/MyContract.py" />
+          <Field label="Key File Path" hint="Optional — relative path to your main contract, package.json, or key source file">
+            <input className={inputClass} value={form.key_file_path} onChange={setField("key_file_path")} placeholder="contracts/ShipBondProtocol.py" />
           </Field>
 
           <Field label="Deployment URL" hint="Live public URL — GenLayer will fetch and inspect this page">

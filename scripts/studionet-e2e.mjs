@@ -8,14 +8,16 @@ import { getAddress } from "viem";
 export async function runStudionetE2E({
   sponsorKey,
   builderKey,
+  sponsorAccountName,
+  builderAccountName,
   contractAddress = "0xd89762C939b973a04d2f06781B6e5A10f5C6CF9b",
   skipReview = false,
   waitStatus = TransactionStatus.ACCEPTED,
   log = console.log,
 }) {
-  if (!sponsorKey || !builderKey) {
-    throw new Error("sponsorKey and builderKey are required");
-  }
+  sponsorKey = sponsorKey || await readUnlockedCliPrivateKey(sponsorAccountName);
+  builderKey = builderKey || await readUnlockedCliPrivateKey(builderAccountName);
+  if (!sponsorKey || !builderKey) throw new Error("sponsorKey and builderKey are required");
 
   const sponsor = createAccount(sponsorKey);
   const builder = createAccount(builderKey);
@@ -90,10 +92,14 @@ export async function runStudionetE2E({
   assertEqual(String(accepted.builder).toLowerCase(), builder.address.toLowerCase(), "builder address");
 
   const evidence = {
-    repo_url: "https://example.com/shipbond-e2e",
-    full_commit_hash: sha256(`commit-${nonce}`).slice(0, 40),
-    raw_readme_url: "https://example.com/shipbond-e2e/raw/README.md",
-    deployment_url: "https://example.com/shipbond-e2e/deployment",
+    repo_url: "https://github.com/ometere123/shipbond",
+    full_commit_hash: "7c3976cd3f8ff8b5a54a276c0059d018d4c94832",
+    readme_path: "README.md",
+    raw_readme_url: "https://raw.githubusercontent.com/ometere123/shipbond/7c3976cd3f8ff8b5a54a276c0059d018d4c94832/README.md",
+    repo_tree_url: "",
+    key_file_path: "",
+    raw_key_file_url: "",
+    deployment_url: "https://shipbond.vercel.app",
     contract_address: contractAddress,
     accept_bond_tx_hash: acceptTx,
     read_result_summary: "Automated smoke read succeeded after builder accepted the milestone.",
@@ -107,7 +113,7 @@ export async function runStudionetE2E({
     builder_explanation_summary: "This is an automated test packet for the ShipBond contract lifecycle.",
   };
   const evidenceJson = stableJson(evidence);
-  const evidenceDigest = sha256(evidenceJson);
+  const evidenceDigest = sha256(stableDigestJson(evidence));
 
   log(JSON.stringify({ event: "step", name: "submit_evidence:start", milestoneId }));
   const submitTx = await withTimeout(builderClient.writeContract({
@@ -177,12 +183,28 @@ if (typeof process !== "undefined" && process.argv[1] && import.meta.url === pat
   await runStudionetE2E({
     sponsorKey,
     builderKey,
+    sponsorAccountName: process.env.SHIPBOND_SPONSOR_ACCOUNT,
+    builderAccountName: process.env.SHIPBOND_BUILDER_ACCOUNT,
     contractAddress,
     skipReview: process.env.SHIPBOND_SKIP_REVIEW === "1",
     waitStatus: process.env.SHIPBOND_WAIT_STATUS === "FINALIZED"
       ? TransactionStatus.FINALIZED
       : TransactionStatus.ACCEPTED,
   });
+}
+
+async function readUnlockedCliPrivateKey(accountName) {
+  if (!accountName) return "";
+  let mod;
+  try {
+    mod = await import("keytar");
+  } catch {
+    mod = await import("file:///C:/Users/USER/AppData/Roaming/npm/node_modules/genlayer/node_modules/keytar/lib/keytar.js");
+  }
+  const keytar = mod.default ?? mod;
+  const key = await keytar.getPassword("genlayer-cli", `account:${accountName}`);
+  if (!key) throw new Error(`GenLayer CLI account '${accountName}' is not unlocked`);
+  return key;
 }
 
 function sha256(value) {
@@ -197,8 +219,31 @@ function stableJson(value) {
     contract_address: value.contract_address,
     deployment_url: value.deployment_url,
     full_commit_hash: value.full_commit_hash,
+    key_file_path: value.key_file_path ?? "",
+    raw_key_file_url: value.raw_key_file_url ?? "",
+    raw_readme_url: value.raw_readme_url,
+    readme_path: value.readme_path,
+    read_result_summary: value.read_result_summary,
+    repo_tree_url: value.repo_tree_url ?? "",
+    repo_url: value.repo_url,
+    smoke_test_result: value.smoke_test_result,
+  });
+}
+
+function stableDigestJson(value) {
+  return JSON.stringify({
+    accept_bond_tx_hash: value.accept_bond_tx_hash,
+    acceptance_criteria_checklist: value.acceptance_criteria_checklist,
+    builder_explanation_summary: value.builder_explanation_summary,
+    contract_address: value.contract_address,
+    deployment_url: value.deployment_url,
+    full_commit_hash: value.full_commit_hash,
+    key_file_path: value.key_file_path ?? "",
+    raw_key_file_url: value.raw_key_file_url ?? "",
     raw_readme_url: value.raw_readme_url,
     read_result_summary: value.read_result_summary,
+    readme_path: value.readme_path,
+    repo_tree_url: value.repo_tree_url ?? "",
     repo_url: value.repo_url,
     smoke_test_result: value.smoke_test_result,
   });

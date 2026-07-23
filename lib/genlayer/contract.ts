@@ -1,6 +1,6 @@
 /**
  * Contract address constant and type definitions mirroring deployed
- * ShipBondProtocol.py on Studionet (0xaD92f4d63B513394741cD5b5B650FfFfc3865D24).
+ * ShipBondProtocol.py on Studionet (0xd840A072C6B491698E53e469f214f6c6D2750Dc4).
  *
  * Status/verdict values are UPPERCASE to match the Python contract.
  */

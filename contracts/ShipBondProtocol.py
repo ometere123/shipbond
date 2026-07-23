@@ -3,6 +3,7 @@
 
 from genlayer import *
 from datetime import datetime, timezone
+import hashlib
 import json
 
 
@@ -200,6 +201,9 @@ class ShipBondProtocol(gl.Contract):
             raise gl.vm.UserError("evidence_digest must be a 64-character SHA-256 hex string")
 
         refs = _parse_and_validate_evidence_refs(evidence_refs_json)
+        expected_digest = _compute_evidence_digest(refs)
+        if evidence_digest.lower().strip() != expected_digest:
+            raise gl.vm.UserError("evidence_digest does not match canonical evidence refs")
 
         state["evidence_digest"] = evidence_digest.lower().strip()
         state["evidence_refs_json"] = json.dumps(refs, sort_keys=True)
@@ -1039,6 +1043,107 @@ def _is_full_commit_hash(value: str) -> bool:
     return True
 
 
+def _strip_trailing_slash(value: str) -> str:
+    while value.endswith("/"):
+        value = value[:-1]
+    return value
+
+
+def _parse_github_repo(repo_url: str) -> dict:
+    if not isinstance(repo_url, str):
+        raise gl.vm.UserError("repo_url must be a string")
+
+    normalized = _strip_trailing_slash(repo_url.strip())
+    if normalized.endswith(".git"):
+        normalized = normalized[:-4]
+
+    prefix = "https://github.com/"
+    if not normalized.startswith(prefix):
+        raise gl.vm.UserError("repo_url must be a canonical https://github.com/{owner}/{repo} URL")
+
+    path = normalized[len(prefix):]
+    parts = path.split("/")
+    if len(parts) != 2:
+        raise gl.vm.UserError("repo_url must not include branches, commits, files, or query strings")
+
+    owner = parts[0].strip()
+    repo = parts[1].strip()
+    if not _is_safe_github_path_segment(owner) or not _is_safe_github_path_segment(repo):
+        raise gl.vm.UserError("repo_url contains an invalid GitHub owner or repository name")
+
+    return {
+        "owner": owner,
+        "repo": repo,
+        "repo_url": f"{prefix}{owner}/{repo}",
+    }
+
+
+def _is_safe_github_path_segment(value: str) -> bool:
+    if not value or len(value) > 100:
+        return False
+    if value.startswith(".") or value.endswith("."):
+        return False
+    allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
+    for ch in value:
+        if ch not in allowed:
+            return False
+    return True
+
+
+def _normalise_repo_file_path(path: str, field_name: str) -> str:
+    if not isinstance(path, str):
+        path = str(path)
+    cleaned = path.strip().replace("\\", "/")
+    if not cleaned:
+        raise gl.vm.UserError(f"{field_name} cannot be empty")
+    if cleaned.startswith("/") or "//" in cleaned or ".." in cleaned.split("/"):
+        raise gl.vm.UserError(f"{field_name} must be a relative repository path")
+    if _contains_forbidden_instruction(cleaned):
+        raise gl.vm.UserError(f"{field_name} contains forbidden instruction")
+    return cleaned[:300]
+
+
+def _derive_raw_github_url(owner: str, repo: str, commit_hash: str, file_path: str) -> str:
+    safe_path = _normalise_repo_file_path(file_path, "evidence file path")
+    return f"https://raw.githubusercontent.com/{owner}/{repo}/{commit_hash}/{safe_path}"
+
+
+def _validate_supplied_raw_url(
+    supplied_url: str,
+    expected_url: str,
+    field_name: str,
+    required: bool,
+) -> None:
+    supplied = supplied_url.strip() if isinstance(supplied_url, str) else str(supplied_url).strip()
+    if not supplied:
+        if required:
+            raise gl.vm.UserError(f"Missing evidence field: {field_name}")
+        return
+    if supplied != expected_url:
+        raise gl.vm.UserError(f"{field_name} must match the URL derived from repo_url and full_commit_hash")
+
+
+def _compute_evidence_digest(refs: dict) -> str:
+    digest_refs = {
+        "repo_url": refs.get("repo_url", ""),
+        "full_commit_hash": refs.get("full_commit_hash", ""),
+        "readme_path": refs.get("readme_path", "README.md"),
+        "raw_readme_url": refs.get("raw_readme_url", ""),
+        "deployment_url": refs.get("deployment_url", ""),
+        "read_result_summary": refs.get("read_result_summary", ""),
+        "smoke_test_result": refs.get("smoke_test_result", ""),
+        "builder_explanation_summary": refs.get("builder_explanation_summary", ""),
+        "acceptance_criteria_checklist": refs.get("acceptance_criteria_checklist", []),
+        "repo_tree_url": refs.get("repo_tree_url", ""),
+        "key_file_path": refs.get("key_file_path", ""),
+        "raw_key_file_url": refs.get("raw_key_file_url", ""),
+        "contract_address": refs.get("contract_address", ""),
+        "accept_bond_tx_hash": refs.get("accept_bond_tx_hash", ""),
+    }
+    canonical = json.dumps(digest_refs, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def _send_gen(to_address: str, amount: u256) -> None:
     if not to_address:
         raise gl.vm.UserError("Missing recipient address")
@@ -1123,11 +1228,51 @@ def _parse_and_validate_evidence_refs(evidence_refs_json: str) -> dict:
     if not _is_full_commit_hash(full_commit_hash):
         raise gl.vm.UserError("full_commit_hash must be a 40-character lowercase hex SHA-1 string")
 
+    repo = _parse_github_repo(_require_nonempty_string(refs, "repo_url", 500))
+    readme_path = _normalise_repo_file_path(
+        _optional_string(refs, "readme_path", 300) or "README.md",
+        "readme_path",
+    )
+    raw_readme_url = _derive_raw_github_url(
+        repo["owner"],
+        repo["repo"],
+        full_commit_hash,
+        readme_path,
+    )
+    _validate_supplied_raw_url(
+        _optional_string(refs, "raw_readme_url", 500),
+        raw_readme_url,
+        "raw_readme_url",
+        False,
+    )
+
+    key_file_path = _optional_string(refs, "key_file_path", 300)
+    raw_key_file_url = ""
+    if key_file_path:
+        key_file_path = _normalise_repo_file_path(key_file_path, "key_file_path")
+        raw_key_file_url = _derive_raw_github_url(
+            repo["owner"],
+            repo["repo"],
+            full_commit_hash,
+            key_file_path,
+        )
+    supplied_raw_key_file_url = _optional_string(refs, "raw_key_file_url", 500)
+    if supplied_raw_key_file_url:
+        if not raw_key_file_url:
+            raise gl.vm.UserError("raw_key_file_url requires key_file_path")
+        _validate_supplied_raw_url(
+            supplied_raw_key_file_url,
+            raw_key_file_url,
+            "raw_key_file_url",
+            False,
+        )
+
     return {
         # Required
-        "repo_url":                      _require_nonempty_string(refs, "repo_url", 500),
+        "repo_url":                      repo["repo_url"],
         "full_commit_hash":              full_commit_hash,
-        "raw_readme_url":                _require_nonempty_string(refs, "raw_readme_url", 500),
+        "readme_path":                   readme_path,
+        "raw_readme_url":                raw_readme_url,
         "deployment_url":                _require_nonempty_string(refs, "deployment_url", 500),
         "read_result_summary":           _require_nonempty_string(refs, "read_result_summary", 1000),
         "smoke_test_result":             _require_nonempty_string(refs, "smoke_test_result", 1000),
@@ -1137,7 +1282,8 @@ def _parse_and_validate_evidence_refs(evidence_refs_json: str) -> dict:
         ),
         # Optional — empty string is valid
         "repo_tree_url":                 _optional_string(refs, "repo_tree_url", 500),
-        "raw_key_file_url":              _optional_string(refs, "raw_key_file_url", 500),
+        "key_file_path":                 key_file_path,
+        "raw_key_file_url":              raw_key_file_url,
         "contract_address":              _optional_string(refs, "contract_address", 120),
         "accept_bond_tx_hash":           _optional_string(refs, "accept_bond_tx_hash", 120),
     }
